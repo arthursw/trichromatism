@@ -2,7 +2,7 @@ import * as shaders from './shaders.js';
 
 let parameters = {
     nLines: 100,
-    lineWidth: 5,
+    lineWidth: 15,
     angles: {
         red: 45,
         green: 90,
@@ -13,6 +13,14 @@ let parameters = {
         green: 0.5,
         blue: 0.5,
     },
+    invert: {
+        red: false,
+        green: false,
+        blue: false,
+    },
+    rgbOrHsv: 0,
+    hueRotationBefore: 0,
+    hueRotationAfter: 0,
     lines: true,
     createSVG: displayGeneratingAndDraw,
     exportSVG: ()=> {
@@ -244,13 +252,20 @@ gui.add(parameters, 'createSVG');
 gui.add(parameters, 'exportSVG');
 gui.add(parameters, 'lines').onChange( ()=> updateUniforms() );
 gui.add(parameters, 'nLines', 1, 500, 1).onChange( ()=> updateUniforms() );
-gui.add(parameters, 'lineWidth', 1, 10, 1).onChange( ()=> updateUniforms() );
-gui.add(parameters.angles, 'red', 1, 360, 1).name('red angle').onChange( ()=> updateUniforms() );
-gui.add(parameters.angles, 'green', 1, 360, 1).name('green angle').onChange( ()=> updateUniforms() );
-gui.add(parameters.angles, 'blue', 1, 360, 1).name('blue angle').onChange( ()=> updateUniforms() );
+gui.add(parameters, 'lineWidth', 1, 20, 1).onChange( ()=> updateUniforms() );
+gui.add(parameters, 'rgbOrHsv', 0, 1, 0.01).onChange( ()=> updateUniforms() );
+gui.add(parameters, 'hueRotationBefore', 0, 1, 0.01).onChange( ()=> updateUniforms() );
+gui.add(parameters, 'hueRotationAfter', 0, 1, 0.01).onChange( ()=> updateUniforms() );
+gui.add(parameters.angles, 'red', 0, 360, 1).name('red angle').onChange( ()=> updateUniforms() );
+gui.add(parameters.angles, 'green', 0, 360, 1).name('green angle').onChange( ()=> updateUniforms() );
+gui.add(parameters.angles, 'blue', 0, 360, 1).name('blue angle').onChange( ()=> updateUniforms() );
 gui.add(parameters.thresholds, 'red', 0, 1, 0.01).name('red threshold').onChange( ()=> updateUniforms() );
 gui.add(parameters.thresholds, 'green', 0, 1, 0.01).name('green threshold').onChange( ()=> updateUniforms() );
 gui.add(parameters.thresholds, 'blue', 0, 1, 0.01).name('blue threshold').onChange( ()=> updateUniforms() );
+
+gui.add(parameters.invert, 'red').name('invert red').onChange( ()=> updateUniforms() );
+gui.add(parameters.invert, 'green').name('invert green').onChange( ()=> updateUniforms() );
+gui.add(parameters.invert, 'blue').name('invert blue').onChange( ()=> updateUniforms() );
 
 // let rectangle = new paper.Path.Rectangle(paper.view.bounds.expand(-40))
 // rectangle.fillColor = 'red'

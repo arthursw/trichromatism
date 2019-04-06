@@ -35,12 +35,18 @@ function createUniforms() {
         channelResolution: new THREE.Uniform(new THREE.Vector2(canvas ? canvas.height / 2 : 0, canvas ? canvas.width / 2 : 0)),
         nLines: { type: "i", value: parameters.nLines },
         lineWidth: { type: "f", value: parameters.lineWidth },
+        rgbOrHsv: { type: "f", value: parameters.rgbOrHsv },
+        hueRotationBefore: { type: "f", value: parameters.hueRotationBefore },
+        hueRotationAfter: { type: "f", value: parameters.hueRotationAfter },
         redAngle: { type: "f", value: parameters.angles.red },
         greenAngle: { type: "f", value: parameters.angles.green },
         blueAngle: { type: "f", value: parameters.angles.blue },
         redThreshold: { type: "f", value: parameters.thresholds.red },
         greenThreshold: { type: "f", value: parameters.thresholds.green },
         blueThreshold: { type: "f", value: parameters.thresholds.blue },
+        invertRed: { type: "b", value: parameters.invert.red },
+        invertGreen: { type: "b", value: parameters.invert.green },
+        invertBlue: { type: "b", value: parameters.invert.blue },
         lines: {type: "b", value: parameters.lines},
     };
 
@@ -139,6 +145,11 @@ export function updateTexture() {
 export function updateUniforms(parameters) {
     uniforms.nLines.value = parameters.nLines
     uniforms.lineWidth.value = parameters.lineWidth
+
+    uniforms.rgbOrHsv.value = parameters.rgbOrHsv
+    uniforms.hueRotationBefore.value = parameters.hueRotationBefore
+    uniforms.hueRotationAfter.value = parameters.hueRotationAfter
+
     uniforms.redAngle.value = parameters.angles.red
     uniforms.greenAngle.value = parameters.angles.green
     uniforms.blueAngle.value = parameters.angles.blue
@@ -146,6 +157,10 @@ export function updateUniforms(parameters) {
     uniforms.redThreshold.value = parameters.thresholds.red
     uniforms.greenThreshold.value = parameters.thresholds.green
     uniforms.blueThreshold.value = parameters.thresholds.blue
+
+    uniforms.invertRed.value = parameters.invert.red
+    uniforms.invertGreen.value = parameters.invert.green
+    uniforms.invertBlue.value = parameters.invert.blue
 
     uniforms.lines.value = parameters.lines
 
