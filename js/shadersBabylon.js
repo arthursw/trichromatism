@@ -27,7 +27,7 @@ var createScene = async function(engine, paperCanvas) {
     
 
     let fragmentShader = await import('./shaders/trichromatism.js');
-    // let fragmentShader = await import('./shaders/test2.js');
+    // let fragmentShader = await import('./shaders/testThree2.js');
     let vertexShader = await import('./shaders/vertex.js');
 
     BABYLON.Effect.ShadersStore["trichromatismFragmentShader"] = fragmentShader.shader.trim();

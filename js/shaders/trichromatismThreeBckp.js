@@ -8,9 +8,6 @@ uniform vec2 textureResolution;
 
 uniform float time;
 uniform vec4 mouse;
-// uniform vec2 resolution;
-// uniform sampler2D channel;
-// uniform vec3 channelResolution;
 uniform int nLines;
 uniform float lineWidth;
 uniform float redAngle;
@@ -33,7 +30,7 @@ uniform float hueRotationAfter;
 
 vec3 colors[9];
 
-int mixMethod = 1;
+int mixMethod = 0;
 
 #define PI 3.1415926535897932384626433832795
 /*
@@ -183,10 +180,14 @@ float colorDifferenceCIE94FromLab(vec3 cieLab1, vec3 cieLab2) {
     return deltaE94;
 }
 
+// float colorDifferenceCIE94FromRGB(vec3 rgb1, vec3 rgb2) {
+//     vec3 lab1 = rgb2lab(rgb1);
+//     vec3 lab2 = rgb2lab(rgb2);
+//     return colorDifferenceCIE94FromLab(lab1, lab2);
+// }
+
 float colorDifferenceCIE94FromRGB(vec3 rgb1, vec3 rgb2) {
-    vec3 lab1 = rgb2lab(rgb1);
-    vec3 lab2 = rgb2lab(rgb2);
-    return colorDifferenceCIE94FromLab(lab1, lab2);
+    return abs(rgb2.r - rgb1.r);
 }
 
 vec4 rgb2cmyk1(vec3 rgb) {
@@ -382,8 +383,7 @@ void main()
     float twoPi = 2.0*PI;
     vec3 angles = twoPi * vec3(redAngle, greenAngle, blueAngle) / 360.0;
 
-    vec3 white = vec3(1.0);
-    vec3 black = vec3(0.0);
+
 
     vec3 c1 = rotateHue(vec4(1.0, 0.0, 0.0, 1.0), hueRotationAfter).xyz;
     vec3 c2 = rotateHue(vec4(0.0, 1.0, 0.0, 1.0), hueRotationAfter).xyz;
@@ -393,6 +393,10 @@ void main()
     vec3 c13 = mixColors(c1, c3);
     vec3 c23 = mixColors(c2, c3);
     vec3 c123 = mixColors(c1, c2, c3);
+
+    vec3 white = vec3(1.0);
+    vec3 black = vec3(0.0);
+    vec3 pixel = rgb;
 
     colors[0] = white;
     colors[1] = black;
@@ -405,22 +409,106 @@ void main()
     colors[8] = c123;
 
     float minDistance = 1000000.0;
-    int index = 0;
 
+    vec3 finalColor = vec3(0.0);
+
+    float distance = colorDifferenceCIE94FromRGB(pixel, colors[0]);
+    if(distance < minDistance) {
+        finalColor = colors[0];
+        minDistance = distance;
+    }
+    distance = colorDifferenceCIE94FromRGB(pixel,  colors[1]);
+    if(distance < minDistance) {
+        finalColor = colors[1];
+        minDistance = distance;
+    }
+    distance = colorDifferenceCIE94FromRGB(pixel, colors[2]);
+    if(distance < minDistance) {
+        finalColor = colors[2];
+        minDistance = distance;
+    }
+    distance = colorDifferenceCIE94FromRGB(pixel, colors[3]);
+    if(distance < minDistance) {
+        finalColor = colors[3];
+        minDistance = distance;
+    }
+    distance = colorDifferenceCIE94FromRGB(pixel, colors[4]);
+    if(distance < minDistance) {
+        finalColor = colors[4];
+        minDistance = distance;
+    }
+    distance = colorDifferenceCIE94FromRGB(pixel,  colors[5]);
+    if(distance < minDistance) {
+        finalColor = colors[5];
+        minDistance = distance;
+    }
+    distance = colorDifferenceCIE94FromRGB(pixel,  colors[6]);
+    if(distance < minDistance) {
+        finalColor = colors[6];
+        minDistance = distance;
+    }
+    distance = colorDifferenceCIE94FromRGB(pixel,  colors[7]);
+    if(distance < minDistance) {
+        finalColor = colors[7];
+        minDistance = distance;
+    }
+    distance = colorDifferenceCIE94FromRGB(pixel,  colors[8]);
+    if(distance < minDistance) {
+        finalColor = colors[8];
+        minDistance = distance;
+    }
+
+    gl_FragColor = vec4(finalColor, 1.0);
+
+    if (uv.x < 0.0) {
+        return;
+    }
+
+
+    minDistance = 100000.0;
     for(int i=0 ; i<9 ; i++) {
-        float distance = colorDifferenceCIE94FromRGB(rgb, colors[i]);
+        distance = colorDifferenceCIE94FromRGB(pixel, colors[i]);
+        
         if(distance < minDistance) {
-            index = i;
+            finalColor = colors[i];
             minDistance = distance;
         }
     }
-    vec3 finalColor = colors[index];
-    
-    if(uv.x < -0.45) {
-        float y = uv.y + 0.5;
-        finalColor = colors[int(floor(y * 8.9))];
-    }
 
+
+    // if(index == 0) {
+    //     gl_FragColor = vec4(colors[0], 1.0);
+    // } else if (index == 1) {
+    //     gl_FragColor = vec4(colors[1], 1.0);
+    // } else if (index == 2) {
+    //     gl_FragColor = vec4(colors[2], 1.0);
+    // } else if (index == 3) {
+    //     gl_FragColor = vec4(colors[3], 1.0);
+    // } else if (index == 4) {
+    //     gl_FragColor = vec4(colors[4], 1.0);
+    // } else if (index == 5) {
+    //     gl_FragColor = vec4(colors[5], 1.0);
+    // } else if (index == 6) {
+    //     gl_FragColor = vec4(colors[6], 1.0);
+    // } else if (index == 7) {
+    //     gl_FragColor = vec4(colors[7], 1.0);
+    // } else if (index == 8) {
+    //     gl_FragColor = vec4(colors[8], 1.0);
+    // } else {
+    //     gl_FragColor = vec4(0.5, 0.4, 0.9, 1.0);
+    // }
+
+
+    if(uv.x < -0.45) {
+        int y = int(floor((uv.y + 0.5) * 8.9));
+        
+        for(int j=0 ; j<9 ; j++) {
+            if(y == j) {
+                finalColor = colors[j];
+            }
+        }
+        
+    }
 
     gl_FragColor = vec4(finalColor, 1.0);
 }

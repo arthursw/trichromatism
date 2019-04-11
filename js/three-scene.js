@@ -72,8 +72,8 @@ function buildEnvironment() {
 
 function init() {
 
-    container = document.createElement( 'div' );
-    document.body.appendChild( container );
+    // container = document.createElement( 'div' );
+    // document.body.appendChild( container );
 
     scene = new THREE.Scene();
 
@@ -171,12 +171,17 @@ function init() {
     // buildEnvironment()
 
     //
-    
-    renderer = new THREE.WebGLRenderer( { antialias: true, preserveDrawingBuffer: true } );
+    let canvas = $('#shader-canvas').get(0);
+    let context = canvas.getContext( 'webgl2' );
+    renderer = new THREE.WebGLRenderer( { context: context, canvas: canvas, antialias: true, preserveDrawingBuffer: true } );
 
+    // renderer = new THREE.WebGLRenderer( { antialias: true, preserveDrawingBuffer: true } );
+    // document.body.appendChild( renderer.domElement );
+    
     // renderer.setPixelRatio( window.devicePixelRatio );
     renderer.setSize( screenWidth, screenHeight );
-    container.appendChild( renderer.domElement );
+
+    // container.appendChild( renderer.domElement );
 
     // renderer.autoClear = false;
     // renderer.autoClearColor = false;
