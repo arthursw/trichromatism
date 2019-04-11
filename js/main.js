@@ -10,9 +10,48 @@ let drawing = new paper.Group()
 
 let createSVGButton = null
 
+let exportGroups = (groups)=> {
+
+    var container = document.createElement('div');
+
+    var params = { width: parameters.exportWidth, height: parameters.exportHeight };
+    var two = new Two(params).appendTo(container);
+    
+    var rect = two.makeRectangle(0, 0, parameters.exportWidth, parameters.exportHeight);
+    rect.fill = new paper.Color(parameters.colors.backgroundColor).toCSS()
+    rect.noStroke();
+
+    let blobs = []
+    for(let group of groups) {
+        for(let i=1 ; i<group.children.length ; i++) {
+            let p = group.children[i]
+            let p1 = group.matrix.inverseTransform(p.firstSegment.point)
+            let p2 = group.matrix.inverseTransform(p.lastSegment.point)
+            let line = two.makeLine(p1.x, p1.y, p2.x, p2.y)
+            line.linewidth = p.strokeWidth;
+            line.stroke = p.strokeColor.toCSS();
+        }
+
+        two.update();
+
+        // let svg = exportProject.exportSVG({ asString: true });
+        container.firstElementChild.setAttribute('xmlns', "http://www.w3.org/2000/svg")
+
+        var svgString = container.innerHTML;
+
+        // create an svg image, create a link to download the image, and click it
+
+        let blob = new Blob([svgString], {type: 'image/svg+xml'});
+        blobs.push(blob)
+    }
+    return blobs
+}
+
 let parameters = {
     nLines: 195,
     lineWidth: 3,
+    minLineLength: 5,
+    minHoleLength: 3,
     optimizeWithRaster: true,
     preprocessing: {
         hue: 0,
@@ -23,6 +62,7 @@ let parameters = {
         color1: [16,171,255],
         color2: [215,0,139],
         color3: [255,210,0],
+        backgroundColor: [255, 255, 255],
     },
     colorArray: [],
     colorVectorArray: [],
@@ -52,19 +92,108 @@ let parameters = {
     mixWeight: 1.15,
     createSVG: createSVG,
     thresholdRaster: thresholdRaster,
+    exportLayersSeparately: true,
+    exportWidth: 1000,
+    exportHeight: 650,
     exportSVG: ()=> {
-        
-        let svg = paper.project.exportSVG( { asString: true });
 
-        // create an svg image, create a link to download the image, and click it
-        let blob = new Blob([svg], {type: 'image/svg+xml'});
-        let url = URL.createObjectURL(blob);
-        let link = document.createElement("a");
-        document.body.appendChild(link);
-        link.download = 'result.svg';
-        link.href = url;
-        link.click();
-        document.body.removeChild(link);
+        let bounds = new paper.Rectangle(0, 0, parameters.exportWidth, parameters.exportHeight)
+
+        let background = new paper.Path.Rectangle(raster.bounds)
+        background.fillColor = new paper.Color(parameters.colors.backgroundColor).toCSS()
+
+        let groups = []
+        
+        if(parameters.exportLayersSeparately) {
+        
+            for(let colorName in paths) {
+
+                let group = new paper.Group()
+                group.addChildren(background)
+                group.addChildren(paths[colorName])
+
+                group.fitBounds(bounds)
+
+                groups.push(group)
+
+                group.remove()
+            }
+
+        } else {
+            let group = new paper.Group()
+            group.addChild(background)
+
+            for(let colorName in paths) {
+                group.addChildren(paths[colorName])
+            }
+
+            group.fitBounds(bounds)
+
+            groups.push(group)
+            group.remove()
+        }
+
+        var container = document.createElement('div');
+
+        var params = { width: parameters.exportWidth, height: parameters.exportHeight };
+        var two = new Two(params).appendTo(container);
+        
+        let blobs = []
+        for(let group of groups) {
+            
+            var rect = two.makeRectangle(parameters.exportWidth/2, parameters.exportHeight/2, parameters.exportWidth, parameters.exportHeight);
+            rect.fill = new paper.Color(parameters.colors.backgroundColor).toCSS()
+            rect.noStroke();
+
+            for(let i=1 ; i<group.children.length ; i++) {
+                let p = group.children[i]
+
+                let p1 = p.firstSegment.point
+                let p2 = p.lastSegment.point
+                let line = two.makeLine(p1.x, p1.y, p2.x, p2.y)
+                line.linewidth = p.strokeWidth;
+                line.stroke = p.strokeColor.toCSS();
+            }
+
+            two.update();
+
+            container.firstElementChild.setAttribute('xmlns', "http://www.w3.org/2000/svg")
+
+            var svgString = container.innerHTML;
+
+            let blob = new Blob([svgString], {type: 'image/svg+xml'});
+            blobs.push(blob)
+            two.clear()
+        }
+        
+        if(parameters.exportLayersSeparately) {
+
+            var zip = new JSZip();
+
+            var img = zip.folder("trichromatism");
+            
+            let i = 0
+            for(let blob of blobs) {
+                img.file('color' + i + '.svg', blob, {base64: true});
+                i++
+            }
+
+            zip.generateAsync({type:"blob"})
+            .then(function(content) {
+                saveAs(content, "trichromatism.zip");
+            });
+
+        } else {
+
+            let url = URL.createObjectURL(blobs[0]);
+            let link = document.createElement("a");
+            document.body.appendChild(link);
+            link.download = 'result.svg';
+            link.href = url;
+            link.click();
+            document.body.removeChild(link);
+        }
+
 
     },
 }
@@ -314,7 +443,7 @@ function updateColorArrays() {
 
     for(let c of parameters.colorArray) {
         colorVectorArray.push(vector3FromColor(c))
-        paperColorArray.push(new paper.Color(c.css()))
+        paperColorArray.push(new paper.Color(c.gl()))
     }
 
     parameters.colorVectorArray = colorVectorArray
@@ -326,7 +455,7 @@ function createPath(currentColorIndex) {
     path.strokeWidth = parameters.lineWidth;
     path.strokeColor = parameters.paperColorArray[currentColorIndex];
     path.blendMode = 'multiply'
-    paths.push(path)
+    path.data.black = false
     // drawing.addChild(path);
     return path;
 }
@@ -350,7 +479,7 @@ function getClosestColorIndex(pixelColor) {
             continue
         }
         // let distance = chroma.deltaE(color, pixelColor)
-        let distance = colorDifferenceCIE94FromRGB(color, pixelColor)
+        let distance = colorDifferenceCIE94FromRGB(pixelColor, color)
         if(distance < minDistance) {
             minDistance = distance
             closestColorIndex = index
@@ -379,6 +508,7 @@ function mustColor(pixelColor, colorIndex) {
 
 
 function drawLines() {
+
 
     let width = raster.bounds.width
     let height = raster.bounds.height
@@ -480,6 +610,16 @@ function draw() {
 	// compoundPath.removeChildren();
 
     drawing.removeChildren();
+
+    if(parameters.optimizeWithRaster && projectRaster != null) {
+        paper.project.clear()
+        projectRaster = paper.project.activeLayer.rasterize()
+        paper.project.activeLayer.addChild(projectRaster)
+    }
+
+    for(let colorName in paths) {
+        paths[colorName] = []
+    }
 
     currentColorIndex = 0;
     drawLines();
@@ -593,11 +733,17 @@ let colorFolder = gui.addFolder('Colors');
 colorFolder.addColor(parameters.colors, 'color1').name('Color 1').onChange( ()=> updateColor() );
 colorFolder.addColor(parameters.colors, 'color2').name('Color 2').onChange( ()=> updateColor() );
 colorFolder.addColor(parameters.colors, 'color3').name('Color 3').onChange( ()=> updateColor() );
+// colorFolder.addColor(parameters.colors, 'backgroundColor').name('Background color').onChange( ()=> updateColor() );
 colorFolder.add(parameters, 'useBlack').name('Use Black').onChange( ()=> updateUniforms() );
 
 gui.add(parameters, 'nLines', 1, 500, 1).onChange( ()=> updateUniforms() );
 gui.add(parameters, 'lineWidth', 1, 20, 1).onChange( ()=> updateUniforms() );
+gui.add(parameters, 'minLineLength', 0, 100, 1);
+gui.add(parameters, 'minHoleLength', 0, 100, 1);
+
 gui.add(parameters, 'mixWeight', 0.0, 3.0, 0.01).onChange( ()=> updateUniforms() );
+
+
 
 let angleFolder = gui.addFolder('Angles');
 
@@ -613,11 +759,10 @@ angleFolder.add(parameters.angles, 'blue', 0, 360, 1).name('blue angle').onChang
 // gui.add(parameters.invert, 'red').name('invert red').onChange( ()=> updateUniforms() );
 // gui.add(parameters.invert, 'green').name('invert green').onChange( ()=> updateUniforms() );
 // gui.add(parameters.invert, 'blue').name('invert blue').onChange( ()=> updateUniforms() );
-
+// gui.add(parameters, 'optimizeWithRaster');
 createSVGButton = gui.add(parameters, 'createSVG').name('Create SVG');
-gui.add(parameters, 'thresholdRaster')
 
-
+gui.add(parameters, 'exportLayersSeparately').name('Export separately');
 gui.add(parameters, 'exportSVG').name('Export SVG');
 
 // let rectangle = new paper.Path.Rectangle(paper.view.bounds.expand(-40))
@@ -631,7 +776,7 @@ raster.on('load', rasterLoaded);
 
 let projectRaster = null
 
-let paths = []
+let paths = { red:[], green: [], blue: [], black: [] }
 
 function getPointOnRaster(point) {
     let halfSize = raster.size.multiply(0.5)
@@ -641,6 +786,9 @@ function getPointOnRaster(point) {
 function isBlack(color) {
     return color.red < 0.01 && color.green < 0.01 && color.blue < 0.01
 }
+
+let indexToColorName = ['red', 'green', 'blue', 'black']
+
 
 function animate() {
     requestAnimationFrame( animate )
@@ -659,19 +807,44 @@ function animate() {
     }
 
     let path = createPath(currentColorIndex);
+    let blackPath = createPath(currentColorIndex);
+    blackPath.data.black = true
+    blackPath.strokeColor = 'black'
 
     let length = currentLine.length
+    let previousPath = null
+    let previousBlackPath = null
 
     for(let i=0 ; i<length ; i++) {
 
         let point = currentLine.getPointAt(i);
         
         if(!raster.bounds.contains(point)) {
+            
+            let mustBreak = path.segments.length == 1
 
             if(path.segments.length == 1) {
                 path.add(point)
+                if(path.length < parameters.minLineLength) {
+                    path.remove()
+                } else {
+                    paths[indexToColorName[currentColorIndex]].push(path)
+                }
+            }
+
+            if(blackPath.segments.length == 1) {
+                blackPath.add(point)
+                if(blackPath.length < parameters.minLineLength) {
+                    blackPath.remove()
+                } else {
+                    paths['black'].push(blackPath)
+                }
+            }
+
+            if(mustBreak) {
                 break
             }
+
             continue
         }
 
@@ -679,32 +852,90 @@ function animate() {
 
         let mc = mustColor(color, currentColorIndex)
 
-        if(path.segments.length == 1 && mc == 0) {
-            path.add(point)
-            path = createPath(currentColorIndex);
-        } else if(path.segments.length == 0 && mc == 1) {
-            path.add(point)
+
+        // black path
+
+        if(blackPath.segments.length == 1 && mc != -1) {
+            blackPath.add(point)
+            if(blackPath.length < parameters.minLineLength) {
+                blackPath.remove()
+            } else {
+                paths['black'].push(blackPath)
+                // if(path.segments.length == 1) {
+                //     path.add(blackPath.firstSegment.point)
+
+                //     if(path.length < parameters.minLineLength) {
+                //         path.remove()
+                //     } else {
+                //         paths[indexToColorName[currentColorIndex]].push(path)
+                //         previousPath = path
+                //     }
+                //     path = createPath(currentColorIndex);
+                // }
+                previousBlackPath = blackPath
+            }
+            blackPath = createPath(currentColorIndex);
+            blackPath.data.black = true
+            blackPath.strokeColor = 'black'
+        } else if(blackPath.segments.length == 0 && mc == -1) {
+
+            if(previousBlackPath && previousBlackPath.segments.length == 2 && previousBlackPath.lastSegment.point.getDistance(point) < parameters.minHoleLength) {
+                blackPath.remove()
+                previousBlackPath.lastSegment.remove()
+                blackPath = previousBlackPath
+            } else {
+                blackPath.add(point)
+            }
         }
 
-        // if(isBlack(path.strokeColor) && mc > -0.5) {
+        // normal path
+
+        // if(path.segments.length == 1 && mc == 0) {
         //     path.add(point)
+        //     if(path.length < parameters.minLineLength) {
+        //         path.remove()
+        //     } else {
+        //         paths[indexToColorName[currentColorIndex]].push(path)
+        //         previousPath = path
+        //     }
         //     path = createPath(currentColorIndex);
-        // } else {
-        //     if(path.segments.length == 1 && mc == 0) {
+        // } else if(path.segments.length == 0 && mc != 0) {
+
+        //     if(previousPath && previousPath.segments.length == 2 && previousPath.lastSegment.point.getDistance(point) < parameters.minHoleLength) {
+        //         path.remove()
+        //         previousPath.lastSegment.remove()
+        //         path = previousPath
+        //     } else {
         //         path.add(point)
-        //         path = createPath(currentColorIndex);
-        //     } else if(path.segments.length == 0 && Math.abs(mc) > 0.5) {
-        //         path.add(point)
-        //         if(mc < -0.5) {
-        //             path.strokeColor = 'black'
-        //         }
         //     }
         // }
 
+        if(path.segments.length == 1 && mc != 1) {
+            path.add(point)
+            if(path.length < parameters.minLineLength) {
+                path.remove()
+            } else {
+                paths[indexToColorName[currentColorIndex]].push(path)
+                previousPath = path
+            }
+            path = createPath(currentColorIndex);
+        } else if(path.segments.length == 0 && mc == 1) {
+
+            if(previousPath && previousPath.segments.length == 2 && previousPath.lastSegment.point.getDistance(point) < parameters.minHoleLength) {
+                path.remove()
+                previousPath.lastSegment.remove()
+                path = previousPath
+            } else {
+                path.add(point)
+            }
+        }
     }
 
     if(path.segments.length == 1) {
         path.add(point)
+    }
+    if(blackPath.segments.length == 1) {
+        blackPath.add(point)
     }
 
     currentLine = currentLine.nextSibling
@@ -787,11 +1018,10 @@ window.raster = raster
 window.projectRaster = projectRaster
 animate()
 
-function onWindowResize() {
+window.addEventListener( 'resize', ()=> {
+
     background.remove()
     background = new paper.Path.Rectangle(paper.view.bounds)
     background.fillColor = 'white'
     background.sendToBack()
-}
-
-window.addEventListener( 'resize', onWindowResize, false );
+}, false );
