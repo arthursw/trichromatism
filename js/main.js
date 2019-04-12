@@ -772,7 +772,6 @@ shaders.initialize(paper.view.element, parameters)
 
 
 window.shaders = shaders
-raster.on('load', rasterLoaded);
 
 let projectRaster = null
 
@@ -1025,3 +1024,6 @@ window.addEventListener( 'resize', ()=> {
     background.fillColor = 'white'
     background.sendToBack()
 }, false );
+
+
+raster.on('load', rasterLoaded);

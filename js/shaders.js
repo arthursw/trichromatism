@@ -1,3 +1,6 @@
+import * as fragmentShader from './shaders/trichromatism.js';
+import * as vertexShader from './shaders/vertex.js';
+
 var dynamicTexture = null;
 var mesh = null;
 var shaderMaterial = null;
@@ -26,9 +29,9 @@ var createScene = async function(engine, paperCanvas) {
     camera.orthoBottom = - window.innerHeight / 2;
     
 
-    let fragmentShader = await import('./shaders/trichromatism.js');
-    // let fragmentShader = await import('./shaders/test2.js');
-    let vertexShader = await import('./shaders/vertex.js');
+    // let fragmentShader = await import('./shaders/trichromatism.js');
+    // // let fragmentShader = await import('./shaders/test2.js');
+    // let vertexShader = await import('./shaders/vertex.js');
 
     BABYLON.Effect.ShadersStore["trichromatismFragmentShader"] = fragmentShader.shader.trim();
     BABYLON.Effect.ShadersStore["trichromatismVertexShader"] = vertexShader.shader.trim();

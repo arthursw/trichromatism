@@ -1,3 +1,5 @@
+import * as fragmentShader from './shaders/trichromatismThree.js';
+import * as vertexShader from './shaders/vertexThree.js';
 import { scene, renderer, bounds, cameraOrtho, renderThreeJS, initializeThreeJS, container, resizeThreeJS } from './three-scene.js'
 
 let elapsedSeconds = 0
@@ -9,8 +11,7 @@ let width = window.innerWidth
 let height = window.innerHeight
 
 let parameters = null
-let vertexShader = null
-let fragmentShader = null
+
 let shaderName = null
 
 let texture = null
@@ -63,7 +64,7 @@ function createUniforms() {
 
 async function createMaterial(fragmentShader) {
 
-    vertexShader = await import('./shaders/vertexThree.js')
+    // vertexShader = await import('./shaders/vertexThree.js')
 
     uniforms = createUniforms()
 
@@ -90,7 +91,7 @@ export async function init() {
     initializeThreeJS();
 
     // fragmentShader = await import('./shaders/trichromatism.js')
-    fragmentShader = await import('./shaders/trichromatismThree.js')
+    // fragmentShader = await import('./shaders/trichromatismThree.js')
     // fragmentShader = await import('./shaders/testThree2.js')
     
     material = await createMaterial(fragmentShader.shader)
@@ -112,7 +113,7 @@ export async function init() {
 }
 
 export async function loadFile(shaderName) {
-    fragmentShader = await import('./shaders/' + shaderName + '.js')
+    // fragmentShader = await import('./shaders/' + shaderName + '.js')
 
     fileChanged(fragmentShader.shader)
 }
@@ -135,10 +136,6 @@ export async function activate(newShaderName, newParameters) {
 	if(!initialized) {
 		await init(shaderName)
         
-	} else {
-        if(shaderName) {
-            loadFile(shaderName)
-        }
 	}
 }
 
