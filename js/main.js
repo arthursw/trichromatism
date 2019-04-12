@@ -5,7 +5,7 @@ var canvas = document.getElementById('paper-canvas');
 paper.setup(canvas);
 
 
-let raster = new paper.Raster('bike.jpg');
+let raster = null
 let drawing = new paper.Group()
 
 let createSVGButton = null
@@ -627,45 +627,6 @@ function draw() {
 }
 
 function rasterLoaded() {
-    
-
-	// if(preview != null) {
-	// 	preview.remove();
-	// }
-	// preview = raster.clone();
-	// let maxContainerSize = paper.view.bounds.width < paper.view.bounds.height ? paper.view.bounds.width : paper.view.bounds.height;
-
- //    let ratio = preview.width / preview.height;
- //    let size = maxContainerSize / 8;
- //    if(preview.width > preview.height) {
- //        preview.height = size;
- //        preview.width = preview.height * ratio;
- //    } else {
- //        preview.width = size;
- //        preview.height = preview.width / ratio;
- //    }
-
-	// preview.position = paper.view.bounds.topLeft.add(preview.bounds.size.multiply(0.5));
-
-
-
-    // let maxSizeOfRaster = Math.max(raster.width, raster.height);
-    // let maxSizeAllowed = 500;
-    
-    // if(maxSizeOfRaster > maxSizeAllowed) {
-    //     let ratio = raster.width / raster.height;
-    //     if(raster.width > raster.height) {
-    //         raster.height = maxSizeAllowed;
-    //         raster.width = raster.height * ratio;
-    //     } else {
-    //         raster.width = maxSizeAllowed;
-    //         raster.height = raster.width / ratio;
-    //     }
-    // }
-
-	// raster.remove();
-	// displayGeneratingAndDraw();
-
     raster.fitBounds(paper.view.bounds)
     shaders.updateTexture(raster)
     setTimeout(()=>shaders.updateUniforms(parameters), 100)
@@ -767,8 +728,6 @@ gui.add(parameters, 'exportSVG').name('Export SVG');
 
 // let rectangle = new paper.Path.Rectangle(paper.view.bounds.expand(-40))
 // rectangle.fillColor = 'red'
-
-shaders.initialize(paper.view.element, parameters)
 
 
 window.shaders = shaders
@@ -1013,9 +972,8 @@ function animate() {
     }
 }
 
-window.raster = raster
 window.projectRaster = projectRaster
-animate()
+
 
 window.addEventListener( 'resize', ()=> {
 
@@ -1026,4 +984,13 @@ window.addEventListener( 'resize', ()=> {
 }, false );
 
 
-raster.on('load', rasterLoaded);
+
+$(document).ready(()=> {
+    shaders.initialize(paper.view.element, parameters)
+    raster = new paper.Raster('bike.jpg');
+    raster.on('load', rasterLoaded);
+    animate()
+    setTimeout(()=>{
+        shaders.updateTexture(raster)
+        updateUniforms()}, 1000)
+})
