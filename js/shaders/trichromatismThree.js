@@ -351,13 +351,13 @@ vec4 applyColors(vec2 fragCoord, vec4 finalColor) {
         } else if(uvy < 0.3) {
             finalColor.rgb = colors[2];
         } else if(uvy < 0.4) {
-            finalColor.rgb = mixColors2(colors[0], colors[1], 1.0).rgb;
+            finalColor.rgb = colors[3]; // mixColors2(colors[0], colors[1], 1.0).rgb;
         } else if(uvy < 0.5) {
-            finalColor.rgb = mixColors2(colors[0], colors[2], 1.0).rgb;
+            finalColor.rgb = colors[4]; //mixColors2(colors[0], colors[2], 1.0).rgb;
         } else if(uvy < 0.6) {
-            finalColor.rgb = mixColors2(colors[1], colors[2], 1.0).rgb;
+            finalColor.rgb = colors[5]; //mixColors2(colors[1], colors[2], 1.0).rgb;
         } else if(uvy < 0.7) {
-            finalColor.rgb = mixColors2(mixColors2(colors[1], colors[2], 1.0).rgb, colors[3], 1.0).rgb;
+            finalColor.rgb = colors[6]; //mixColors2(mixColors2(colors[1], colors[2], 1.0).rgb, colors[3], 1.0).rgb;
         } else if(uvy < 0.8) {
             finalColor.rgb = colors[7];
         } else if(uvy < 0.9) {
@@ -413,6 +413,13 @@ void main()
 
     vec4 anglesRad = TWO_PI * (angles - 90.0) / 360.0;
     
+    
+    // vec4 pixel = getPixelForAngle(uv, screenRatio, gridSize, anglesRad.r);
+    // gl_FragColor = pixel;
+    // float mask = getLineMaskForAngle(uv, gridSize, lineWidthNormalized, lineAA, anglesRad.r);
+    // gl_FragColor = vec4(mix(black, vec3(0.4, 0.1, 0.6), mask), 1.0);
+    // return;
+
     // finalColor.a = 0.0;
 
     // vec2 color1 = getColorForAngle(uv, screenRatio, gridSize, lineWidthNormalized, lineAA, anglesRad.r, 0);

@@ -1,14 +1,21 @@
 import * as shaders from './shadersThree.js';
+import { shader } from './shaders/trichromatismThree.js';
 // import * as shaders from './shadersBabylon.js';
 
 var canvas = document.getElementById('paper-canvas');
 paper.setup(canvas);
 
+let noSVGText = new paper.PointText(paper.view.bounds.center)
+noSVGText.justification = 'center'
+noSVGText.fillColor = 'black'
+noSVGText.content = 'Click "Create SVG" to generate the vector drawing'
+noSVGText.visible = false
 
 let raster = null
 let drawing = new paper.Group()
 
 let createSVGButton = null
+let exportSVGButton = null
 
 let exportGroups = (groups)=> {
 
@@ -59,9 +66,9 @@ let parameters = {
         lightness: 0,
     },
     colors: {
-        color1: [16,171,255],
-        color2: [215,0,139],
-        color3: [255,210,0],
+        color1: [16,171,255], // Cyan
+        color2: [215,0,139],  // Magenta
+        color3: [255,210,0],  // Yellow
         backgroundColor: [255, 255, 255],
     },
     colorArray: [],
@@ -96,42 +103,30 @@ let parameters = {
     exportWidth: 1000,
     exportHeight: 650,
     exportSVG: ()=> {
-
+        if(!SVGcreated) {
+            alert('The SVG is not generated. Click "Create SVG" to create the vector drawing.')
+            return
+        }
         let bounds = new paper.Rectangle(0, 0, parameters.exportWidth, parameters.exportHeight)
 
         let background = new paper.Path.Rectangle(raster.bounds)
         background.fillColor = new paper.Color(parameters.colors.backgroundColor).toCSS()
 
-        let groups = []
+        let group = new paper.Group()
         
-        if(parameters.exportLayersSeparately) {
-        
-            for(let colorName in paths) {
+        group.addChild(background.clone())
 
-                let group = new paper.Group()
-                group.addChildren(background)
-                group.addChildren(paths[colorName])
-
-                group.fitBounds(bounds)
-
-                groups.push(group)
-
-                group.remove()
-            }
-
-        } else {
-            let group = new paper.Group()
-            group.addChild(background)
-
-            for(let colorName in paths) {
-                group.addChildren(paths[colorName])
-            }
-
-            group.fitBounds(bounds)
-
-            groups.push(group)
-            group.remove()
+        for(let colorName in paths) {
+            let colorGroup = new paper.Group()
+            colorGroup.addChildren(paths[colorName])
+            group.addChild(colorGroup)
         }
+
+        group.fitBounds(bounds)
+
+        group.remove()
+
+        background.remove()
 
         var container = document.createElement('div');
 
@@ -139,31 +134,48 @@ let parameters = {
         var two = new Two(params).appendTo(container);
         
         let blobs = []
-        for(let group of groups) {
+        let i = 1
+        for(let colorGroup of group.children) {
             
-            var rect = two.makeRectangle(parameters.exportWidth/2, parameters.exportHeight/2, parameters.exportWidth, parameters.exportHeight);
-            rect.fill = new paper.Color(parameters.colors.backgroundColor).toCSS()
-            rect.noStroke();
+            if(parameters.exportLayersSeparately || colorGroup == group.firstChild) {
+                var rect = two.makeRectangle(parameters.exportWidth/2, parameters.exportHeight/2, parameters.exportWidth, parameters.exportHeight);
+                rect.fill = new paper.Color(parameters.colors.backgroundColor).toCSS()
+                rect.noStroke();
+            }
+            if(colorGroup == group.firstChild) {
+                continue
+            }
 
-            for(let i=1 ; i<group.children.length ; i++) {
-                let p = group.children[i]
-
+            let lines = []
+            let strokeColor = null
+            for(let p of colorGroup.children) {
                 let p1 = p.firstSegment.point
                 let p2 = p.lastSegment.point
                 let line = two.makeLine(p1.x, p1.y, p2.x, p2.y)
-                line.linewidth = p.strokeWidth;
-                line.stroke = p.strokeColor.toCSS();
+                line.linewidth = p.strokeWidth
+                strokeColor = p.strokeColor.toCSS()
+                line.stroke = strokeColor
+                lines.push(line)
             }
+            let twoGroup = two.makeGroup(lines)
+            twoGroup.strokeColor = strokeColor
+            twoGroup.id = 'color-' + i
 
-            two.update();
+            if(parameters.exportLayersSeparately || colorGroup == group.lastChild) {
+                two.update()
 
-            container.firstElementChild.setAttribute('xmlns', "http://www.w3.org/2000/svg")
+                container.firstElementChild.setAttribute('xmlns', "http://www.w3.org/2000/svg")
 
-            var svgString = container.innerHTML;
+                var svgString = container.innerHTML
+                let oc = parameters.colors[i < 4 ? 'color'+i : 'backgroundColor']
+                let colorCSS = new paper.Color([oc[0]/255, oc[1]/255, oc[2]/255])
+                $(container).find('#color-'+i).attr('data-paper-data', colorCSS.toCSS())
 
-            let blob = new Blob([svgString], {type: 'image/svg+xml'});
-            blobs.push(blob)
-            two.clear()
+                let blob = new Blob([svgString], {type: 'image/svg+xml'})
+                blobs.push(blob)
+                two.clear()
+            }
+            i++
         }
         
         if(parameters.exportLayersSeparately) {
@@ -197,7 +209,7 @@ let parameters = {
 
     },
 }
-
+window.parameters = parameters;
 
 function rgb2xyz(rgb) {
     rgb[0] = rgb[0] > 0.04045 ? Math.pow( ( rgb[0] + 0.055 ) / 1.055, 2.4) : rgb[0] / 12.92;
@@ -224,6 +236,82 @@ function xyz2lab(xyz) {
             xyz[2] > 0.008856 ? Math.pow( xyz[2], 1.0/3.0) : (7.787 * xyz[2]) + (16.0 / 116.0) ];
 
     return [ (116.0 * xyz[1]) - 16.0, 500.0 * (xyz[0] - xyz[1]), 200.0 * (xyz[1] - xyz[2]) ];
+}
+
+function fract(f) {
+    return f-Math.floor(f);
+}
+
+function mix(x, y, a) {
+    a = clamp(a, 0, 1);
+    return (1.0-a) * x + a * y;
+}
+
+function clamp(value, min, max) {
+    return Math.max(Math.min(value, max), min);
+}
+
+function step(edge, value) {
+    return value < edge ? 0.0 : 1.0;
+}
+
+// vec3 hsv2rgb(vec3 c) {
+//     vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+//     vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+//     return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+// }
+
+// c: [hue, saturation, value]
+function hsv2rgb(c) {
+    let K = [1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0];
+    let px = Math.abs(fract(c[0] + K[0]) * 6.0 - K[3]);
+    let py = Math.abs(fract(c[0] + K[1]) * 6.0 - K[3]);
+    let pz = Math.abs(fract(c[0] + K[2]) * 6.0 - K[3]);
+    let rx = c[2] * mix(K[0], clamp(px - K[0], 0.0, 1.0), c[1]);
+    let ry = c[2] * mix(K[0], clamp(py - K[0], 0.0, 1.0), c[1]);
+    let rz = c[2] * mix(K[0], clamp(pz - K[0], 0.0, 1.0), c[1]);
+    return [rx, ry, rz];
+}
+
+// vec3 rgb2hsv(vec3 c) {
+//     vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+//     vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+//     vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+
+//     float d = q.x - min(q.w, q.y);
+//     float e = 1.0e-10;
+//     return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+// }
+
+// c: [red, green, blue]
+function rgb2hsv(c) {
+    let K = [0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0];
+    let px = mix(c[2], c[1], step(c[2], c[1]));
+    let py = mix(c[1], c[2], step(c[2], c[1]));
+    let pz = mix(K[3], K[0], step(c[2], c[1]));
+    let pw = mix(K[2], K[1], step(c[2], c[1]));
+
+    let qx = mix(px, c[0], step(px, c[0]));
+    let qy = mix(py, py, step(px, c[0]));
+    let qz = mix(pw, pz, step(px, c[0]));
+    let qw = mix(c[0], px, step(px, c[0]));
+
+    let d = qx - Math.min(qw, qy);
+    let e = 1.0e-10;
+
+    let rx = Math.abs(qz + (qw - qy) / (6.0 + d + e));
+    let ry = d / (qx + e);
+    let rz = qx;
+    return [rx, ry, rz];
+}
+
+function preprocess(cPaper) {
+    let chsv = rgb2hsv(cPaper.components);
+    chsv[0] = ( chsv[0] + parameters.preprocessing.hue ) % 1.0;
+    chsv[1] += parameters.preprocessing.saturation;
+    chsv[2] += parameters.preprocessing.lightness;
+    let nc = hsv2rgb(chsv);
+    return new paper.Color(nc[0], nc[1], nc[2]);
 }
 
 function rgb2lab(rgb) {
@@ -291,16 +379,21 @@ background.fillColor = 'white'
 background.sendToBack()
 
 function showSVG() {
-
+    
     raster.visible = false
 
     paper.project.activeLayer.removeChildren()
+    
+    if(!SVGcreated && noSVGText != null) {
+        paper.project.activeLayer.addChild(noSVGText)
+        noSVGText.visible = true
+    }
     
     if(projectRaster) {
         projectRaster.visible = true
         paper.project.activeLayer.addChild(projectRaster)
     }
-    
+
     // if(parameters.showColors) {
     //     colorGroup.visible = true
     //     paper.project.activeLayer.addChild(colorGroup)
@@ -330,10 +423,65 @@ function showPreview() {
     $('#paper-canvas').hide()
 }
 
-function createSVG() {
+let shaderCanvasRaster = new paper.Raster()
+let SVGcreated = false
+let creatingSVG = false
 
-    showSVG()
-    draw()
+function stopSVG() {
+    currentLine = null
+    currentColorIndex = 0
+    createSVGButton.name('Create SVG')
+    $(progressionInput.domElement.parentElement.parentElement).hide()
+}
+
+function createSVG() {
+    if(creatingSVG) {
+        stopSVG()
+        return
+    }
+    creatingSVG = true
+
+    createSVGButton.name('Stop generating SVG')
+
+    parameters.renderMode = 'Image'
+    showPreview()
+    let currentShowColors = parameters.showColors
+    parameters.showColors = false
+    updateUniforms()
+    shaders.render()
+    parameters.showColors = currentShowColors
+
+    let shaderCanvasURL = document.getElementById('shader-canvas').toDataURL()
+    let entireShaderCanvasRaster = new paper.Raster(shaderCanvasURL, paper.view.bounds.center)
+    entireShaderCanvasRaster.onLoad = ()=> {
+        let r = new paper.Rectangle(paper.view.viewToProject(raster.bounds.topLeft), paper.view.viewToProject(raster.bounds.bottomRight))
+        let imageData = entireShaderCanvasRaster.getImageData(r)
+        shaderCanvasRaster = new paper.Raster({ size: r.size, center: paper.view.bounds.center })
+        shaderCanvasRaster.setImageData(imageData, new paper.Point(0, 0))
+        
+        shaderCanvasRaster.bounds.center = paper.view.bounds.center
+        window.shaderCanvasRaster = shaderCanvasRaster
+
+        entireShaderCanvasRaster.remove()
+
+        SVGcreated = true
+        if(noSVGText != null) {
+            noSVGText.remove()
+            noSVGText = null
+        }
+
+        showSVG()
+        draw()
+
+        $(exportSVGButton.domElement.parentElement.parentElement).show()
+
+        // shaderCanvasRaster.scale(0.8)
+
+        // $('#shader-canvas').hide()
+        // $('#paper-canvas').show()
+    }
+    
+
 
 	// if(generatingText == null) {
 	// 	generatingText = new paper.Group()
@@ -406,8 +554,9 @@ function thresholdRaster() {
     for(let i=0 ; i<newRaster.height ; i++) {
         for(let j=0 ; j<newRaster.width ; j++) {
             let color = newRaster.getPixel(j, i)
-            let index = getClosestColorIndex(color)
-            newRaster.setPixel(j, i, parameters.paperColorArray[index])
+            // let index = getClosestColorIndex(preprocess(color))
+            // newRaster.setPixel(j, i, parameters.paperColorArray[index])
+            newRaster.setPixel(j, i, color)
         }
     }
     newRaster.visible = true
@@ -490,6 +639,7 @@ function getClosestColorIndex(pixelColor) {
 }
 
 function mustColor(pixelColor, colorIndex) {
+    // let pixelColorPreprocessed = preprocess(pixelColor)
     let closestColorIndex = getClosestColorIndex(pixelColor)
     let black = closestColorIndex == 7
     if(parameters.useBlack && black) {
@@ -508,7 +658,6 @@ function mustColor(pixelColor, colorIndex) {
 
 
 function drawLines() {
-
 
     let width = raster.bounds.width
     let height = raster.bounds.height
@@ -535,9 +684,33 @@ function drawLines() {
     // lines.pivot = raster.bounds.center
 
     lines.rotation = parameters.angles[currentColorIndex == 0 ? 'red' : currentColorIndex == 1 ? 'green' : currentColorIndex == 2 ? 'blue' : 'black'];
-   
 
-    
+    let rasterBounds = new paper.Path.Rectangle(raster.bounds)
+    let crossings = lines.getCrossings(rasterBounds)
+    let lineToCrossings = new Map()
+
+    for(let crossing of crossings) {
+        let ltc = lineToCrossings.get(crossing.path)
+        if(ltc != null) {
+            ltc.push(crossing)
+        } else {
+            lineToCrossings.set(crossing.path, [crossing])
+        }
+    }
+    let cuttedLines = new paper.CompoundPath()
+    for(let [line, crossings] of lineToCrossings) {
+        if(crossings.length != 2) {
+            console.error(line, 'line has ', crossings.length ,' crossings!')
+            continue
+        }
+        let line = new paper.Path()
+        line.add(crossings[0].point)
+        line.add(crossings[1].point)
+        cuttedLines.addChild(line)
+    }
+    lines.remove()
+    lines = cuttedLines
+
     // if(!lines.bounds.contains(rasterRectangle)) {
         
     //     console.log('lines bounds', lines.bounds)
@@ -640,22 +813,23 @@ function onDocumentDrag(event) {
 	event.preventDefault();
 }
 
+function loadImage(dataURL) {
+    raster.remove()
+    var image = document.createElement('img');
+    image.onload = function () {
+        raster = new paper.Raster(image);
+        raster.onLoad = rasterLoaded
+    };
+    image.src = dataURL;
+}
+
 function onDocumentDrop(event) {
 	event.preventDefault();
 
 	var file = event.dataTransfer.files[0];
 	var reader = new FileReader();
 
-    raster.remove()
-
-	reader.onload = function (event) {
-		var image = document.createElement('img');
-		image.onload = function () {
-			raster = new paper.Raster(image);
-            raster.onLoad = rasterLoaded
-		};
-		image.src = event.target.result;
-	};
+	reader.onload = (event)=> loadImage(event.target.result)
 	reader.readAsDataURL(file);
 }
 
@@ -673,14 +847,50 @@ updateColor()
 
 var gui = new dat.GUI();
 
-gui.add(parameters, 'renderMode', ['Preview', 'Image', 'Thresholds', 'SVG']).onChange( (value)=> { 
+let updateRenderMode = (value = parameters.renderMode)=> {
     if(value == 'SVG') {
         showSVG()
         return
     }
     showPreview()
     updateUniforms() 
-} );
+}
+
+let divJ = $("<input data-name='file-selector' type='file' class='form-control' name='file'  accept='image/*' />")
+
+let onLoadImageClick = ()=> {
+    divJ.click()
+}
+
+let loadImageButton = gui.add({loadImage: onLoadImageClick}, 'loadImage').name('Load image');
+
+divJ.insertAfter(loadImageButton.domElement.parentElement.parentElement)
+divJ.hide()
+divJ.change((event)=> {
+
+    let files = event.dataTransfer != null ? event.dataTransfer.files : event.target.files
+
+    for (let i = 0 ; i < files.length ; i++) {
+        let file = files[i] != null ? files[i] : files.item(i)
+        
+        let imageType = /^image\//
+
+        if (!imageType.test(file.type)) {
+            continue
+        }
+
+        let reader = new FileReader()
+        reader.onload = (event) => loadImage(reader.result)
+        reader.readAsDataURL(file)
+
+        break
+    }
+    
+    divJ.val('')
+})
+
+
+gui.add(parameters, 'renderMode', ['Preview', 'Image', 'Thresholds', 'SVG']).onChange(updateRenderMode);
 gui.add(parameters, 'showColors').name('Show colors').onChange( ()=> updateUniforms() );
 
 let preprocessingFolder = gui.addFolder('Preprocessing');
@@ -721,10 +931,19 @@ angleFolder.add(parameters.angles, 'blue', 0, 360, 1).name('blue angle').onChang
 // gui.add(parameters.invert, 'green').name('invert green').onChange( ()=> updateUniforms() );
 // gui.add(parameters.invert, 'blue').name('invert blue').onChange( ()=> updateUniforms() );
 // gui.add(parameters, 'optimizeWithRaster');
-createSVGButton = gui.add(parameters, 'createSVG').name('Create SVG');
 
+createSVGButton = gui.add(parameters, 'createSVG').name('Create SVG');
+let progressionObject = {progression: '--'}
+let progressionInput = gui.add(progressionObject, 'progression').name('Progression');
+progressionInput.listen()
+$(progressionInput.domElement.parentElement.parentElement).hide()
+
+window.createSVGButton = createSVGButton
 gui.add(parameters, 'exportLayersSeparately').name('Export separately');
-gui.add(parameters, 'exportSVG').name('Export SVG');
+gui.add(parameters, 'exportWidth').name('Export width');
+gui.add(parameters, 'exportHeight').name('Export height');
+exportSVGButton = gui.add(parameters, 'exportSVG').name('Export SVG');
+$(exportSVGButton.domElement.parentElement.parentElement).hide()
 
 // let rectangle = new paper.Path.Rectangle(paper.view.bounds.expand(-40))
 // rectangle.fillColor = 'red'
@@ -736,7 +955,7 @@ let projectRaster = null
 
 let paths = { red:[], green: [], blue: [], black: [] }
 
-function getPointOnRaster(point) {
+function getPointOnRaster(point, raster) {
     let halfSize = raster.size.multiply(0.5)
     return raster.viewMatrix.inverseTransform(point).add(halfSize)
 }
@@ -772,12 +991,12 @@ function animate() {
     let length = currentLine.length
     let previousPath = null
     let previousBlackPath = null
-
+    let point = null
     for(let i=0 ; i<length ; i++) {
 
-        let point = currentLine.getPointAt(i);
+        point = currentLine.getPointAt(i);
         
-        if(!raster.bounds.contains(point)) {
+        if(!shaderCanvasRaster.bounds.contains(point)) {
             
             let mustBreak = path.segments.length == 1
 
@@ -806,10 +1025,10 @@ function animate() {
             continue
         }
 
-        let color = raster.getPixel(getPointOnRaster(point))
+        // let color = raster.getPixel(getPointOnRaster(point, raster))
+        let color = shaderCanvasRaster.getPixel(getPointOnRaster(point, shaderCanvasRaster))
 
         let mc = mustColor(color, currentColorIndex)
-
 
         // black path
 
@@ -964,7 +1183,16 @@ function animate() {
         currentColorIndex++
         if(currentColorIndex < 3) {
             drawLines()
+        } else {
+            createSVGButton.name('Create SVG')
+            creatingSVG = false
+            $(progressionInput.domElement.parentElement.parentElement).hide()
         }
+    } else {
+        $(progressionInput.domElement.parentElement.parentElement).show()
+        let nLines = currentLine.parent.children.length
+        progressionObject.progression = 'color ' + (currentColorIndex + 1) + '/3, '
+        progressionObject.progression += 'line ' + currentLine.index + '/' + nLines
     }
 
     if(parameters.optimizeWithRaster) {
@@ -976,11 +1204,15 @@ window.projectRaster = projectRaster
 
 
 window.addEventListener( 'resize', ()=> {
-
-    background.remove()
-    background = new paper.Path.Rectangle(paper.view.bounds)
-    background.fillColor = 'white'
-    background.sendToBack()
+    shaders.resize()
+    paper.view.viewSize = new paper.Size(window.innerWidth, window.innerHeight)
+    for(let child of paper.project.activeLayer.children) {
+        child.position = paper.view.center
+    }
+    rasterLoaded()
+    setTimeout( () => {
+        updateRenderMode()
+    }, 200)
 }, false );
 
 
