@@ -11,6 +11,7 @@ uniform vec4 mouse;
 uniform vec4 angles;
 uniform int nLines;
 uniform float lineWidth;
+// uniform float lineAA;
 uniform float mixWeight;
 
 uniform float redThreshold;
@@ -409,7 +410,7 @@ void main()
     float pixelSize = 1.0 / float(min(screenResolution.x, screenResolution.y));
     float lineWidthNormalized = lineWidth * pixelSize;
     
-    float lineAA = 0.01 * pixelSize;
+    float lineAAps = 0.0001 * pixelSize;
 
     vec4 anglesRad = TWO_PI * (angles - 90.0) / 360.0;
     
@@ -431,11 +432,11 @@ void main()
     
     finalColor.a = 1.0;
 
-    vec2 color1 = getColorForAngle(uv, screenRatio, gridSize, lineWidthNormalized, lineAA, anglesRad.r, 0);
+    vec2 color1 = getColorForAngle(uv, screenRatio, gridSize, lineWidthNormalized, lineAAps, anglesRad.r, 0);
     finalColor = color1.x > 0.5 ? mixColors2(finalColor, colors[0], color1.y) : useBlack && color1.x < -0.5 ? mixColors2(finalColor, black, color1.y) : finalColor;
-    vec2 color2 = getColorForAngle(uv, screenRatio, gridSize, lineWidthNormalized, lineAA, anglesRad.g, 1);
+    vec2 color2 = getColorForAngle(uv, screenRatio, gridSize, lineWidthNormalized, lineAAps, anglesRad.g, 1);
     finalColor = color2.x > 0.5 ? mixColors2(finalColor, colors[1], color2.y) : useBlack && color2.x < -0.5 ? mixColors2(finalColor, black, color2.y) : finalColor;
-    vec2 color3 = getColorForAngle(uv, screenRatio, gridSize, lineWidthNormalized, lineAA, anglesRad.b, 2);
+    vec2 color3 = getColorForAngle(uv, screenRatio, gridSize, lineWidthNormalized, lineAAps, anglesRad.b, 2);
     finalColor = color3.x > 0.5 ? mixColors2(finalColor, colors[2], color3.y) : useBlack && color3.x < -0.5 ? mixColors2(finalColor, black, color3.y) : finalColor;
     
     finalColor.a = 1.0;

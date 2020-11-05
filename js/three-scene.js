@@ -205,64 +205,64 @@ function init() {
 
 function onKeyDown( event ) {
 
-    switch ( event.keyCode ) {
+    // switch ( event.keyCode ) {
 
-        case 37: /*left arrow*/
+    //     case 37: /*left arrow*/
 
-            // cameraRig.position.x -= 10;
-            cameraPerspective.rotation.y -= 0.1;
-            cameraOrtho.rotation.y -= 0.1;
+    //         // cameraRig.position.x -= 10;
+    //         cameraPerspective.rotation.y -= 0.1;
+    //         cameraOrtho.rotation.y -= 0.1;
 
-            break;
+    //         break;
 
-        case 39: /*right arrow*/
+    //     case 39: /*right arrow*/
 
-            // cameraRig.position.x += 10;
-            cameraPerspective.rotation.y += 0.1;
-            cameraOrtho.rotation.y += 0.1;
+    //         // cameraRig.position.x += 10;
+    //         cameraPerspective.rotation.y += 0.1;
+    //         cameraOrtho.rotation.y += 0.1;
 
-            break;
+    //         break;
 
-        case 38: /*up arrow*/
+    //     case 38: /*up arrow*/
 
-            // cameraRig.position.y += 10;
-            cameraPerspective.rotation.z += 0.1;
-            cameraOrtho.rotation.z += 0.1;
+    //         // cameraRig.position.y += 10;
+    //         cameraPerspective.rotation.z += 0.1;
+    //         cameraOrtho.rotation.z += 0.1;
 
-            break;
+    //         break;
 
-        case 40: /*down arrow*/
+    //     case 40: /*down arrow*/
 
-            // cameraRig.position.y -= 10;
-            cameraPerspective.rotation.z -= 0.1;
-            cameraOrtho.rotation.z -= 0.1;
+    //         // cameraRig.position.y -= 10;
+    //         cameraPerspective.rotation.z -= 0.1;
+    //         cameraOrtho.rotation.z -= 0.1;
 
-            break;
+    //         break;
 
-        case 79: /*O*/
+    //     case 79: /*O*/
 
-            // cameraOrtho.position.set(cameraPerspective.position);
-            // cameraOrtho.rotation.set(cameraPerspective.rotation)
+    //         // cameraOrtho.position.set(cameraPerspective.position);
+    //         // cameraOrtho.rotation.set(cameraPerspective.rotation)
 
-            // activeCamera = cameraOrtho;
+    //         // activeCamera = cameraOrtho;
 
-            // activeHelper = cameraOrthoHelper;
+    //         // activeHelper = cameraOrthoHelper;
 
-            break;
+    //         break;
 
-        case 80: /*P*/
+    //     case 80: /*P*/
 
-            // activeCamera = cameraPerspective;
-            // activeHelper = cameraPerspectiveHelper;
+    //         // activeCamera = cameraPerspective;
+    //         // activeHelper = cameraPerspectiveHelper;
 
-            break;
+    //         break;
 
-    }
-    if(event.key == 'a') {
-        cameraPerspective.position.y += 10;
-    } else if(event.key == 'z') {
-        cameraPerspective.position.y -= 10;
-    }
+    // }
+    // if(event.key == 'a') {
+    //     cameraPerspective.position.y += 10;
+    // } else if(event.key == 'z') {
+    //     cameraPerspective.position.y -= 10;
+    // }
     
     // console.log(event.code)
     // console.log(event.key == "z")

@@ -40,6 +40,7 @@ function createUniforms() {
         textureResolution: new THREE.Uniform(new THREE.Vector2(canvas ? canvas.height / 2 : 0, canvas ? canvas.width / 2 : 0)),
         nLines: { type: "i", value: parameters.nLines },
         lineWidth: { type: "f", value: parameters.lineWidth },
+        // lineAA: { type: "f", value: parameters.lineAA },
         rgbOrHsv: { type: "f", value: parameters.rgbOrHsv },
         hueRotationBefore: { type: "f", value: parameters.hueRotationBefore },
         hueRotationAfter: { type: "f", value: parameters.hueRotationAfter },
@@ -163,6 +164,7 @@ export function updateUniforms(parameters) {
     }
     uniforms.nLines.value = parameters.nLines
     uniforms.lineWidth.value = parameters.lineWidth
+    // uniforms.lineAA.value = parameters.lineAA
 
     uniforms.rgbOrHsv.value = parameters.rgbOrHsv
     uniforms.hueRotationBefore.value = parameters.hueRotationBefore

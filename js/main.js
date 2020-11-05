@@ -57,6 +57,7 @@ let exportGroups = (groups)=> {
 let parameters = {
     nLines: 195,
     lineWidth: 3,
+    // lineAA: 0.01,
     minLineLength: 5,
     minHoleLength: 3,
     optimizeWithRaster: true,
@@ -205,7 +206,6 @@ let parameters = {
             link.click();
             document.body.removeChild(link);
         }
-
 
     },
 }
@@ -405,7 +405,7 @@ function showSVG() {
     $('#paper-canvas').show()
 }
 
-function showPreview() {
+function showPreview(callback) {
     raster.visible = true
 
     paper.project.activeLayer.removeChildren()
@@ -416,7 +416,12 @@ function showPreview() {
         projectRaster.visible = false
     }
 
-    setTimeout(()=>shaders.updateUniforms(parameters), 100)
+    setTimeout(()=>{
+        shaders.updateUniforms(parameters)
+        if(callback != null) {
+            callback()
+        }
+    }, 100)
     // createSVGButton.name('Create SVG')
 
     $('#shader-canvas').show()
@@ -432,6 +437,7 @@ function stopSVG() {
     currentColorIndex = 0
     createSVGButton.name('Create SVG')
     $(progressionInput.domElement.parentElement.parentElement).hide()
+    creatingSVG = false
 }
 
 function createSVG() {
@@ -444,67 +450,45 @@ function createSVG() {
     createSVGButton.name('Stop generating SVG')
 
     parameters.renderMode = 'Image'
-    showPreview()
-    let currentShowColors = parameters.showColors
-    parameters.showColors = false
-    updateUniforms()
-    shaders.render()
-    parameters.showColors = currentShowColors
+    showPreview(()=> {
 
-    let shaderCanvasURL = document.getElementById('shader-canvas').toDataURL()
-    let entireShaderCanvasRaster = new paper.Raster(shaderCanvasURL, paper.view.bounds.center)
-    entireShaderCanvasRaster.onLoad = ()=> {
-        let r = new paper.Rectangle(paper.view.viewToProject(raster.bounds.topLeft), paper.view.viewToProject(raster.bounds.bottomRight))
-        let imageData = entireShaderCanvasRaster.getImageData(r)
-        shaderCanvasRaster = new paper.Raster({ size: r.size, center: paper.view.bounds.center })
-        shaderCanvasRaster.setImageData(imageData, new paper.Point(0, 0))
-        
-        shaderCanvasRaster.bounds.center = paper.view.bounds.center
-        window.shaderCanvasRaster = shaderCanvasRaster
-
-        entireShaderCanvasRaster.remove()
-
-        SVGcreated = true
-        if(noSVGText != null) {
-            noSVGText.remove()
-            noSVGText = null
-        }
-
-        showSVG()
-        draw()
-
-        $(exportSVGButton.domElement.parentElement.parentElement).show()
-
-        // shaderCanvasRaster.scale(0.8)
-
-        // $('#shader-canvas').hide()
-        // $('#paper-canvas').show()
-    }
+        let currentShowColors = parameters.showColors
+        parameters.showColors = false
+        updateUniforms()
+        shaders.render()
+        parameters.showColors = currentShowColors
     
-
-
-	// if(generatingText == null) {
-	// 	generatingText = new paper.Group()
-	// 	let text = new paper.PointText({
-	// 		point: paper.view.center,
-	// 		content: 'Generating lines...',
-	// 		fillColor: 'black',
-	// 		fontFamily: 'Courier New',
-	// 		fontSize: 25,
-	// 		justification: 'center'
-	// 	})
-	// 	generatingText.addChild(text)
-	// 	let textBackground = new paper.Path.Rectangle(text.bounds)
-	// 	textBackground.fillColor = 'white'
-	// 	generatingText.addChild(textBackground)
-	// 	textBackground.sendToBack()
-	// }
-	
-	// generatingText.bringToFront()
-	// generatingText.visible = true
-	// setTimeout(()=> {
-	// 	draw()
-	// }, 250)
+        let shaderCanvasURL = document.getElementById('shader-canvas').toDataURL()
+        let entireShaderCanvasRaster = new paper.Raster(shaderCanvasURL, paper.view.bounds.center)
+        entireShaderCanvasRaster.onLoad = ()=> {
+            let r = new paper.Rectangle(paper.view.viewToProject(raster.bounds.topLeft), paper.view.viewToProject(raster.bounds.bottomRight))
+            let imageData = entireShaderCanvasRaster.getImageData(r)
+            shaderCanvasRaster = new paper.Raster({ size: r.size, center: paper.view.bounds.center })
+            shaderCanvasRaster.setImageData(imageData, new paper.Point(0, 0))
+            
+            shaderCanvasRaster.bounds.center = paper.view.bounds.center
+            window.shaderCanvasRaster = shaderCanvasRaster
+    
+            entireShaderCanvasRaster.remove()
+    
+            SVGcreated = true
+            if(noSVGText != null) {
+                noSVGText.remove()
+                noSVGText = null
+            }
+    
+            showSVG()
+            draw()
+    
+            $(exportSVGButton.domElement.parentElement.parentElement).show()
+    
+            // shaderCanvasRaster.scale(0.8)
+    
+            // $('#shader-canvas').hide()
+            // $('#paper-canvas').show()
+        }
+        
+    })
 }
 
 function vector3FromArray(a) {
@@ -599,13 +583,13 @@ function updateColorArrays() {
     parameters.paperColorArray = paperColorArray
 }
 
-function createPath(currentColorIndex) {
+function createPath(currentColorIndex, pathGroup) {
     let path = new paper.Path();
     path.strokeWidth = parameters.lineWidth;
-    path.strokeColor = parameters.paperColorArray[currentColorIndex];
+    path.strokeColor = currentColorIndex < 3 ? parameters.paperColorArray[currentColorIndex] : 'black';
     path.blendMode = 'multiply'
     path.data.black = false
-    // drawing.addChild(path);
+    pathGroup.addChild(path);
     return path;
 }
 
@@ -907,8 +891,9 @@ colorFolder.addColor(parameters.colors, 'color3').name('Color 3').onChange( ()=>
 // colorFolder.addColor(parameters.colors, 'backgroundColor').name('Background color').onChange( ()=> updateColor() );
 colorFolder.add(parameters, 'useBlack').name('Use Black').onChange( ()=> updateUniforms() );
 
-gui.add(parameters, 'nLines', 1, 500, 1).onChange( ()=> updateUniforms() );
-gui.add(parameters, 'lineWidth', 1, 20, 1).onChange( ()=> updateUniforms() );
+gui.add(parameters, 'nLines', 1, 1500, 1).onChange( ()=> updateUniforms() );
+gui.add(parameters, 'lineWidth', 0.1, 20, 0.1).onChange( ()=> updateUniforms() );
+// gui.add(parameters, 'lineAA').onChange( ()=> updateUniforms() );
 gui.add(parameters, 'minLineLength', 0, 100, 1);
 gui.add(parameters, 'minHoleLength', 0, 100, 1);
 
@@ -982,120 +967,44 @@ function animate() {
         paper.project.clear()
         paper.project.activeLayer.addChild(projectRaster)
     }
+    let pathGroup = new paper.Group()
 
-    let path = createPath(currentColorIndex);
-    let blackPath = createPath(currentColorIndex);
-    blackPath.data.black = true
-    blackPath.strokeColor = 'black'
+    let path = createPath(currentColorIndex, pathGroup);
+    // let blackPath = createPath(3, pathGroup);
+    // blackPath.data.black = true
 
     let length = currentLine.length
     let previousPath = null
-    let previousBlackPath = null
+    // let previousBlackPath = null
     let point = null
+
     for(let i=0 ; i<length ; i++) {
 
-        point = currentLine.getPointAt(i);
-        
-        if(!shaderCanvasRaster.bounds.contains(point)) {
-            
-            let mustBreak = path.segments.length == 1
+        point = currentLine.getPointAt(i)
 
+        if(!shaderCanvasRaster.bounds.contains(point)) {
             if(path.segments.length == 1) {
                 path.add(point)
                 if(path.length < parameters.minLineLength) {
                     path.remove()
-                } else {
-                    paths[indexToColorName[currentColorIndex]].push(path)
                 }
             }
-
-            if(blackPath.segments.length == 1) {
-                blackPath.add(point)
-                if(blackPath.length < parameters.minLineLength) {
-                    blackPath.remove()
-                } else {
-                    paths['black'].push(blackPath)
-                }
-            }
-
-            if(mustBreak) {
+            if(i > length / 2) {
                 break
             }
-
-            continue
         }
 
-        // let color = raster.getPixel(getPointOnRaster(point, raster))
         let color = shaderCanvasRaster.getPixel(getPointOnRaster(point, shaderCanvasRaster))
-
         let mc = mustColor(color, currentColorIndex)
-
-        // black path
-
-        if(blackPath.segments.length == 1 && mc != -1) {
-            blackPath.add(point)
-            if(blackPath.length < parameters.minLineLength) {
-                blackPath.remove()
-            } else {
-                paths['black'].push(blackPath)
-                // if(path.segments.length == 1) {
-                //     path.add(blackPath.firstSegment.point)
-
-                //     if(path.length < parameters.minLineLength) {
-                //         path.remove()
-                //     } else {
-                //         paths[indexToColorName[currentColorIndex]].push(path)
-                //         previousPath = path
-                //     }
-                //     path = createPath(currentColorIndex);
-                // }
-                previousBlackPath = blackPath
-            }
-            blackPath = createPath(currentColorIndex);
-            blackPath.data.black = true
-            blackPath.strokeColor = 'black'
-        } else if(blackPath.segments.length == 0 && mc == -1) {
-
-            if(previousBlackPath && previousBlackPath.segments.length == 2 && previousBlackPath.lastSegment.point.getDistance(point) < parameters.minHoleLength) {
-                blackPath.remove()
-                previousBlackPath.lastSegment.remove()
-                blackPath = previousBlackPath
-            } else {
-                blackPath.add(point)
-            }
-        }
-
-        // normal path
-
-        // if(path.segments.length == 1 && mc == 0) {
-        //     path.add(point)
-        //     if(path.length < parameters.minLineLength) {
-        //         path.remove()
-        //     } else {
-        //         paths[indexToColorName[currentColorIndex]].push(path)
-        //         previousPath = path
-        //     }
-        //     path = createPath(currentColorIndex);
-        // } else if(path.segments.length == 0 && mc != 0) {
-
-        //     if(previousPath && previousPath.segments.length == 2 && previousPath.lastSegment.point.getDistance(point) < parameters.minHoleLength) {
-        //         path.remove()
-        //         previousPath.lastSegment.remove()
-        //         path = previousPath
-        //     } else {
-        //         path.add(point)
-        //     }
-        // }
 
         if(path.segments.length == 1 && mc != 1) {
             path.add(point)
             if(path.length < parameters.minLineLength) {
                 path.remove()
             } else {
-                paths[indexToColorName[currentColorIndex]].push(path)
                 previousPath = path
             }
-            path = createPath(currentColorIndex);
+            path = createPath(currentColorIndex, pathGroup)
         } else if(path.segments.length == 0 && mc == 1) {
 
             if(previousPath && previousPath.segments.length == 2 && previousPath.lastSegment.point.getDistance(point) < parameters.minHoleLength) {
@@ -1106,13 +1015,134 @@ function animate() {
                 path.add(point)
             }
         }
+        
     }
+
+    // Same thing with black paths:
+
+    // for(let i=0 ; i<length ; i++) {
+
+    //     point = currentLine.getPointAt(i);
+        
+    //     if(!shaderCanvasRaster.bounds.contains(point)) {
+            
+    //         let mustBreak = path.segments.length == 1
+
+    //         if(path.segments.length == 1) {
+    //             path.add(point)
+    //             if(path.length < parameters.minLineLength) {
+    //                 path.remove()
+    //             }
+    //         }
+
+    //         if(blackPath.segments.length == 1) {
+    //             blackPath.add(point)
+    //             if(blackPath.length < parameters.minLineLength) {
+    //                 blackPath.remove()
+    //             }
+    //         }
+
+    //         if(mustBreak) {
+    //             break
+    //         }
+
+    //         continue
+    //     }
+
+    //     // let color = raster.getPixel(getPointOnRaster(point, raster))
+    //     let color = shaderCanvasRaster.getPixel(getPointOnRaster(point, shaderCanvasRaster))
+
+    //     let mc = mustColor(color, currentColorIndex)
+
+    //     // black path
+
+    //     if(blackPath.segments.length == 1 && mc != -1) {
+    //         blackPath.add(point)
+    //         if(blackPath.length < parameters.minLineLength) {
+    //             blackPath.remove()
+    //             blackPath.data.removed = true
+    //         } else {
+    //             // if(path.segments.length == 1) {
+    //             //     path.add(blackPath.firstSegment.point)
+
+    //             //     if(path.length < parameters.minLineLength) {
+    //             //         path.remove()
+    //             //     } else {
+    //             //         paths[indexToColorName[currentColorIndex]].push(path)
+    //             //         previousPath = path
+    //             //     }
+    //             //     path = createPath(currentColorIndex);
+    //             // }
+    //             previousBlackPath = blackPath
+    //         }
+    //         blackPath = createPath(currentColorIndex);
+    //         blackPath.data.black = true
+    //         blackPath.strokeColor = 'black'
+    //     } else if(blackPath.segments.length == 0 && mc == -1) {
+
+    //         if(previousBlackPath && previousBlackPath.segments.length == 2 && previousBlackPath.lastSegment.point.getDistance(point) < parameters.minHoleLength) {
+    //             blackPath.remove()
+    //             blackPath.data.removed = true
+    //             previousBlackPath.lastSegment.remove()
+    //             blackPath = previousBlackPath
+    //         } else {
+    //             blackPath.add(point)
+    //         }
+    //     }
+
+    //     // normal path
+
+    //     // if(path.segments.length == 1 && mc == 0) {
+    //     //     path.add(point)
+    //     //     if(path.length < parameters.minLineLength) {
+    //     //         path.remove()
+    //     //     } else {
+    //     //         paths[indexToColorName[currentColorIndex]].push(path)
+    //     //         previousPath = path
+    //     //     }
+    //     //     path = createPath(currentColorIndex);
+    //     // } else if(path.segments.length == 0 && mc != 0) {
+
+    //     //     if(previousPath && previousPath.segments.length == 2 && previousPath.lastSegment.point.getDistance(point) < parameters.minHoleLength) {
+    //     //         path.remove()
+    //     //         previousPath.lastSegment.remove()
+    //     //         path = previousPath
+    //     //     } else {
+    //     //         path.add(point)
+    //     //     }
+    //     // }
+
+    //     if(path.segments.length == 1 && mc != 1) {
+    //         path.add(point)
+    //         if(path.length < parameters.minLineLength) {
+    //             path.remove()
+    //         } else {
+    //             previousPath = path
+    //         }
+    //         path = createPath(currentColorIndex);
+    //     } else if(path.segments.length == 0 && mc == 1) {
+
+    //         if(previousPath && previousPath.segments.length == 2 && previousPath.lastSegment.point.getDistance(point) < parameters.minHoleLength) {
+    //             path.remove()
+    //             previousPath.lastSegment.remove()
+    //             path = previousPath
+    //         } else {
+    //             path.add(point)
+    //         }
+    //     }
+    // }
 
     if(path.segments.length == 1) {
         path.add(point)
     }
-    if(blackPath.segments.length == 1) {
-        blackPath.add(point)
+    // if(blackPath.segments.length == 1) {
+    //     blackPath.add(point)
+    // }
+
+    for(let p of pathGroup.children) {
+        if(p.segments.length == 2) {
+            paths[indexToColorName[currentColorIndex]].push(p)
+        }
     }
 
     currentLine = currentLine.nextSibling
@@ -1197,10 +1227,11 @@ function animate() {
 
     if(parameters.optimizeWithRaster) {
         projectRaster = paper.project.activeLayer.rasterize()
+        window.projectRaster = projectRaster
     }
 }
 
-window.projectRaster = projectRaster
+window.paths = paths
 
 
 window.addEventListener( 'resize', ()=> {
