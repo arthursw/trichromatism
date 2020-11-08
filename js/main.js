@@ -14,201 +14,180 @@ noSVGText.visible = false
 let raster = null
 let drawing = new paper.Group()
 
+let shaderCanvasRaster = new paper.Raster()
+let SVGcreated = false
+let creatingSVG = false
+
 let createSVGButton = null
 let exportSVGButton = null
 
-let exportGroups = (groups)=> {
+let parameters = {}
+
+function exportSVG() {
+
+    if(!SVGcreated) {
+        alert('The SVG is not generated. Click "Create SVG" to create the vector drawing.')
+        return
+    }
+    let bounds = new paper.Rectangle(0, 0, parameters.exportWidth, parameters.exportHeight)
+
+    let background = new paper.Path.Rectangle(shaderCanvasRaster.bounds)
+    
+    background.fillColor = new paper.Color(parameters.colors.backgroundColor).toCSS()
+
+    let group = new paper.Group()
+    
+    group.addChild(background.clone())
+
+    for(let colorName in paths) {
+        let colorGroup = new paper.Group()
+        for(let path of paths[colorName]) {
+            colorGroup.addChild(path.clone())
+        }
+        group.addChild(colorGroup)
+    }
+
+    group.fitBounds(bounds)
+    
+
+    group.remove()
+
+    background.remove()
 
     var container = document.createElement('div');
 
     var params = { width: parameters.exportWidth, height: parameters.exportHeight };
     var two = new Two(params).appendTo(container);
-    
-    var rect = two.makeRectangle(0, 0, parameters.exportWidth, parameters.exportHeight);
-    rect.fill = new paper.Color(parameters.colors.backgroundColor).toCSS()
-    rect.noStroke();
 
     let blobs = []
-    for(let group of groups) {
-        for(let i=1 ; i<group.children.length ; i++) {
-            let p = group.children[i]
-            let p1 = group.matrix.inverseTransform(p.firstSegment.point)
-            let p2 = group.matrix.inverseTransform(p.lastSegment.point)
+    let i = 1
+    for(let colorGroup of group.children) {
+        
+        if(parameters.exportLayersSeparately || colorGroup == group.firstChild) {
+            var rect = two.makeRectangle(parameters.exportWidth/2, parameters.exportHeight/2, parameters.exportWidth, parameters.exportHeight);
+            rect.fill = new paper.Color(parameters.colors.backgroundColor).toCSS()
+            rect.noStroke();
+        }
+        if(colorGroup == group.firstChild) {
+            continue
+        }
+
+        let lines = []
+        let strokeColor = null
+        for(let p of colorGroup.children) {
+            let p1 = p.firstSegment.point
+            let p2 = p.lastSegment.point
             let line = two.makeLine(p1.x, p1.y, p2.x, p2.y)
-            line.linewidth = p.strokeWidth;
-            line.stroke = p.strokeColor.toCSS();
+            line.linewidth = p.strokeWidth
+            strokeColor = p.strokeColor.toCSS()
+            line.stroke = strokeColor
+            lines.push(line)
         }
+        let twoGroup = two.makeGroup(lines)
+        twoGroup.strokeColor = strokeColor
+        twoGroup.id = 'color-' + i
 
-        two.update();
+        if(parameters.exportLayersSeparately || colorGroup == group.lastChild) {
+            two.update()
 
-        // let svg = exportProject.exportSVG({ asString: true });
-        container.firstElementChild.setAttribute('xmlns', "http://www.w3.org/2000/svg")
+            container.firstElementChild.setAttribute('xmlns', "http://www.w3.org/2000/svg")
 
-        var svgString = container.innerHTML;
+            var svgString = container.innerHTML
+            let oc = parameters.colors[i < 4 ? 'color'+i : 'backgroundColor']
+            let colorCSS = new paper.Color([oc[0]/255, oc[1]/255, oc[2]/255])
+            $(container).find('#color-'+i).attr('data-paper-data', colorCSS.toCSS())
 
-        // create an svg image, create a link to download the image, and click it
-
-        let blob = new Blob([svgString], {type: 'image/svg+xml'});
-        blobs.push(blob)
+            let blob = new Blob([svgString], {type: 'image/svg+xml'})
+            blobs.push(blob)
+            two.clear()
+        }
+        i++
     }
-    return blobs
-}
+    
+    if(parameters.exportLayersSeparately) {
 
-let parameters = {
-    nLines: 195,
-    lineWidth: 3,
-    // lineAA: 0.01,
-    minLineLength: 5,
-    minHoleLength: 3,
-    optimizeWithRaster: true,
-    preprocessing: {
-        hue: 0,
-        saturation: 0,
-        lightness: 0,
-    },
-    colors: {
-        color1: [16,171,255], // Cyan
-        color2: [215,0,139],  // Magenta
-        color3: [255,210,0],  // Yellow
-        backgroundColor: [255, 255, 255],
-    },
-    colorArray: [],
-    colorVectorArray: [],
-    paperColorArray: [],
-    angles: {
-        red: 45,
-        green: 2*45,
-        blue: 3*45,
-        black: 4*45,
-    },
-    thresholds: {
-        red: 0.5,
-        green: 0.5,
-        blue: 0.5,
-    },
-    invert: {
-        red: false,
-        green: false,
-        blue: false,
-    },
-    rgbOrHsv: 0,
-    hueRotationBefore: 0,
-    hueRotationAfter: 0,
-    renderMode: 'Preview',
-    showColors: true,
-    useBlack: false,
-    mixWeight: 1.15,
-    createSVG: createSVG,
-    thresholdRaster: thresholdRaster,
-    exportLayersSeparately: true,
-    exportWidth: 1000,
-    exportHeight: 650,
-    exportSVG: ()=> {
-        if(!SVGcreated) {
-            alert('The SVG is not generated. Click "Create SVG" to create the vector drawing.')
-            return
-        }
-        let bounds = new paper.Rectangle(0, 0, parameters.exportWidth, parameters.exportHeight)
+        var zip = new JSZip();
 
-        let background = new paper.Path.Rectangle(raster.bounds)
-        background.fillColor = new paper.Color(parameters.colors.backgroundColor).toCSS()
-
-        let group = new paper.Group()
+        var img = zip.folder("trichromatism");
         
-        group.addChild(background.clone())
-
-        for(let colorName in paths) {
-            let colorGroup = new paper.Group()
-            colorGroup.addChildren(paths[colorName])
-            group.addChild(colorGroup)
-        }
-
-        group.fitBounds(bounds)
-
-        group.remove()
-
-        background.remove()
-
-        var container = document.createElement('div');
-
-        var params = { width: parameters.exportWidth, height: parameters.exportHeight };
-        var two = new Two(params).appendTo(container);
-        
-        let blobs = []
-        let i = 1
-        for(let colorGroup of group.children) {
-            
-            if(parameters.exportLayersSeparately || colorGroup == group.firstChild) {
-                var rect = two.makeRectangle(parameters.exportWidth/2, parameters.exportHeight/2, parameters.exportWidth, parameters.exportHeight);
-                rect.fill = new paper.Color(parameters.colors.backgroundColor).toCSS()
-                rect.noStroke();
-            }
-            if(colorGroup == group.firstChild) {
-                continue
-            }
-
-            let lines = []
-            let strokeColor = null
-            for(let p of colorGroup.children) {
-                let p1 = p.firstSegment.point
-                let p2 = p.lastSegment.point
-                let line = two.makeLine(p1.x, p1.y, p2.x, p2.y)
-                line.linewidth = p.strokeWidth
-                strokeColor = p.strokeColor.toCSS()
-                line.stroke = strokeColor
-                lines.push(line)
-            }
-            let twoGroup = two.makeGroup(lines)
-            twoGroup.strokeColor = strokeColor
-            twoGroup.id = 'color-' + i
-
-            if(parameters.exportLayersSeparately || colorGroup == group.lastChild) {
-                two.update()
-
-                container.firstElementChild.setAttribute('xmlns', "http://www.w3.org/2000/svg")
-
-                var svgString = container.innerHTML
-                let oc = parameters.colors[i < 4 ? 'color'+i : 'backgroundColor']
-                let colorCSS = new paper.Color([oc[0]/255, oc[1]/255, oc[2]/255])
-                $(container).find('#color-'+i).attr('data-paper-data', colorCSS.toCSS())
-
-                let blob = new Blob([svgString], {type: 'image/svg+xml'})
-                blobs.push(blob)
-                two.clear()
-            }
+        let i = 0
+        for(let blob of blobs) {
+            img.file('color' + i + '.svg', blob, {base64: true});
             i++
         }
-        
-        if(parameters.exportLayersSeparately) {
 
-            var zip = new JSZip();
+        zip.generateAsync({type:"blob"})
+        .then(function(content) {
+            saveAs(content, "trichromatism.zip");
+        });
 
-            var img = zip.folder("trichromatism");
-            
-            let i = 0
-            for(let blob of blobs) {
-                img.file('color' + i + '.svg', blob, {base64: true});
-                i++
-            }
+    } else {
 
-            zip.generateAsync({type:"blob"})
-            .then(function(content) {
-                saveAs(content, "trichromatism.zip");
-            });
-
-        } else {
-
-            let url = URL.createObjectURL(blobs[0]);
-            let link = document.createElement("a");
-            document.body.appendChild(link);
-            link.download = 'result.svg';
-            link.href = url;
-            link.click();
-            document.body.removeChild(link);
-        }
-
-    },
+        let url = URL.createObjectURL(blobs[0]);
+        let link = document.createElement("a");
+        document.body.appendChild(link);
+        link.download = 'result.svg';
+        link.href = url;
+        link.click();
+        document.body.removeChild(link);
+    }
 }
+
+function loadDefaultParameters() {
+    parameters = {
+        nLines: 195,
+        lineWidth: 3,
+        // lineAA: 0.01,
+        minLineLength: 5,
+        minHoleLength: 3,
+        optimizeWithRaster: true,
+        preprocessing: {
+            hue: 0,
+            saturation: 0,
+            lightness: 0,
+        },
+        colors: {
+            color1: [16,171,255], // Cyan
+            color2: [215,0,139],  // Magenta
+            color3: [255,210,0],  // Yellow
+            backgroundColor: [255, 255, 255],
+        },
+        colorArray: [],
+        colorVectorArray: [],
+        paperColorArray: [],
+        angles: {
+            red: 45,
+            green: 2*45,
+            blue: 3*45,
+            black: 4*45,
+        },
+        thresholds: {
+            red: 0.5,
+            green: 0.5,
+            blue: 0.5,
+        },
+        invert: {
+            red: false,
+            green: false,
+            blue: false,
+        },
+        rgbOrHsv: 0,
+        hueRotationBefore: 0,
+        hueRotationAfter: 0,
+        renderMode: 'Preview',
+        showColors: true,
+        useBlack: false,
+        mixWeight: 1.15,
+        createSVG: createSVG,
+        thresholdRaster: thresholdRaster,
+        exportLayersSeparately: true,
+        exportWidth: 1000,
+        exportHeight: 650
+    }
+    return parameters
+}
+loadDefaultParameters()
+
 window.parameters = parameters;
 
 function rgb2xyz(rgb) {
@@ -428,9 +407,6 @@ function showPreview(callback) {
     $('#paper-canvas').hide()
 }
 
-let shaderCanvasRaster = new paper.Raster()
-let SVGcreated = false
-let creatingSVG = false
 
 function stopSVG() {
     currentLine = null
@@ -496,7 +472,7 @@ function vector3FromArray(a) {
 }
 
 function vector3FromColor(c) {
-    return vector3FromArray(c.gl());
+    return vector3FromArray(c.gl != null ? c.gl() : c._rgb ? c._rgb : c);
 }
 
 // function mixColors(c1, c2) {
@@ -576,7 +552,7 @@ function updateColorArrays() {
 
     for(let c of parameters.colorArray) {
         colorVectorArray.push(vector3FromColor(c))
-        paperColorArray.push(new paper.Color(c.gl()))
+        paperColorArray.push(new paper.Color(c.gl ? c.gl() : c._rgb ? c._rgb : c))
     }
 
     parameters.colorVectorArray = colorVectorArray
@@ -829,8 +805,6 @@ function updateColor() {
 
 updateColor()
 
-var gui = new dat.GUI();
-
 let updateRenderMode = (value = parameters.renderMode)=> {
     if(value == 'SVG') {
         showSVG()
@@ -840,99 +814,136 @@ let updateRenderMode = (value = parameters.renderMode)=> {
     updateUniforms() 
 }
 
-let divJ = $("<input data-name='file-selector' type='file' class='form-control' name='file'  accept='image/*' />")
 
-let onLoadImageClick = ()=> {
-    divJ.click()
-}
+let gui = null
 
-let loadImageButton = gui.add({loadImage: onLoadImageClick}, 'loadImage').name('Load image');
 
-divJ.insertAfter(loadImageButton.domElement.parentElement.parentElement)
-divJ.hide()
-divJ.change((event)=> {
-
-    let files = event.dataTransfer != null ? event.dataTransfer.files : event.target.files
-
-    for (let i = 0 ; i < files.length ; i++) {
-        let file = files[i] != null ? files[i] : files.item(i)
-        
-        let imageType = /^image\//
-
-        if (!imageType.test(file.type)) {
-            continue
-        }
-
-        let reader = new FileReader()
-        reader.onload = (event) => loadImage(reader.result)
-        reader.readAsDataURL(file)
-
-        break
+function createGUI() {
+    if(gui != null) {
+        gui.destroy()
     }
+    gui = new dat.GUI()
+    window.gui = gui
+
+    let divJ = $("<input data-name='file-selector' type='file' class='form-control' name='file'  accept='image/*' />")
+
+
+    let loadImageButton = gui.add({loadImage: ()=>divJ.click()}, 'loadImage').name('Load image');
+
+    divJ.insertAfter(loadImageButton.domElement.parentElement.parentElement)
+    divJ.hide()
+    divJ.change((event)=> {
+
+        let files = event.dataTransfer != null ? event.dataTransfer.files : event.target.files
+
+        for (let i = 0 ; i < files.length ; i++) {
+            let file = files[i] != null ? files[i] : files.item(i)
+            
+            let imageType = /^image\//
+
+            if (!imageType.test(file.type)) {
+                continue
+            }
+
+            let reader = new FileReader()
+            reader.onload = (event) => loadImage(reader.result)
+            reader.readAsDataURL(file)
+
+            break
+        }
+        
+        divJ.val('')
+    })
+
+
+    gui.add(parameters, 'renderMode', ['Preview', 'Image', 'Thresholds', 'SVG']).onChange(updateRenderMode);
+    gui.add(parameters, 'showColors').name('Show colors').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+
+    let preprocessingFolder = gui.addFolder('Preprocessing');
+
+    preprocessingFolder.add(parameters.preprocessing, 'hue', 0, 1, 0.01).onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    preprocessingFolder.add(parameters.preprocessing, 'saturation', -1, 1, 0.01).onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    preprocessingFolder.add(parameters.preprocessing, 'lightness', -1, 1, 0.01).onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+
+    let colorFolder = gui.addFolder('Colors');
+
+    colorFolder.addColor(parameters.colors, 'color1').name('Color 1').onChange( ()=> updateColor() ).onFinishChange(()=> save(false));
+    colorFolder.addColor(parameters.colors, 'color2').name('Color 2').onChange( ()=> updateColor() ).onFinishChange(()=> save(false));
+    colorFolder.addColor(parameters.colors, 'color3').name('Color 3').onChange( ()=> updateColor() ).onFinishChange(()=> save(false));
+    // colorFolder.addColor(parameters.colors, 'backgroundColor').name('Background color').onChange( ()=> updateColor() );
+    colorFolder.add(parameters, 'useBlack').name('Use Black').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+
+    gui.add(parameters, 'nLines', 1, 1500, 1).onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    gui.add(parameters, 'lineWidth', 0.1, 20, 0.1).onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    // gui.add(parameters, 'lineAA').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    gui.add(parameters, 'minLineLength', 0, 100, 1).onFinishChange(()=> save(false));
+    gui.add(parameters, 'minHoleLength', 0, 100, 1).onFinishChange(()=> save(false));
+
+    gui.add(parameters, 'mixWeight', 0.0, 3.0, 0.01).onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+
+
+
+    let angleFolder = gui.addFolder('Angles');
+
+    angleFolder.add(parameters.angles, 'red', 0, 360, 1).name('red angle').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    angleFolder.add(parameters.angles, 'green', 0, 360, 1).name('green angle').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    angleFolder.add(parameters.angles, 'blue', 0, 360, 1).name('blue angle').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    // angleFolder.add(parameters.angles, 'black', 0, 360, 1).name('black angle').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+
+    // gui.add(parameters.thresholds, 'red', 0, 1, 0.01).name('red threshold').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    // gui.add(parameters.thresholds, 'green', 0, 1, 0.01).name('green threshold').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    // gui.add(parameters.thresholds, 'blue', 0, 1, 0.01).name('blue threshold').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+
+    // gui.add(parameters.invert, 'red').name('invert red').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    // gui.add(parameters.invert, 'green').name('invert green').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    // gui.add(parameters.invert, 'blue').name('invert blue').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    // gui.add(parameters, 'optimizeWithRaster').onFinishChange(()=> save(false));
+
+    createSVGButton = gui.add(parameters, 'createSVG').name('Create SVG');
+    let progressionObject = {progression: '--'}
+    let progressionInput = gui.add(progressionObject, 'progression').name('Progression');
+    progressionInput.listen()
+    $(progressionInput.domElement.parentElement.parentElement).hide()
+
+    window.createSVGButton = createSVGButton
+    gui.add(parameters, 'exportLayersSeparately').name('Export separately').onFinishChange(()=> save(false));
+    gui.add(parameters, 'exportWidth').name('Export width').onFinishChange(()=> save(false));
+    gui.add(parameters, 'exportHeight').name('Export height').onFinishChange(()=> save(false));
+    exportSVGButton = gui.add({exportSVG: exportSVG}, 'exportSVG').name('Export SVG');
+    $(exportSVGButton.domElement.parentElement.parentElement).hide()
+
+    // let rectangle = new paper.Path.Rectangle(paper.view.bounds.expand(-40))
+    // rectangle.fillColor = 'red'
     
-    divJ.val('')
-})
+    divJ = $("<input data-name='file-selector' type='file' class='form-control' name='file'  accept='application/json' />")
 
+    let parametersFolder = gui.addFolder('Save / load parameters')
+    let loadParametersButton = parametersFolder.add({loadParameters: ()=> divJ.click()}, 'loadParameters').name('Load parameters')
 
-gui.add(parameters, 'renderMode', ['Preview', 'Image', 'Thresholds', 'SVG']).onChange(updateRenderMode);
-gui.add(parameters, 'showColors').name('Show colors').onChange( ()=> updateUniforms() );
+    divJ.insertAfter(loadParametersButton.domElement.parentElement.parentElement)
+    divJ.hide()
+    divJ.change((event)=> {
+        let files = event.dataTransfer != null ? event.dataTransfer.files : event.target.files
+    
+        for (let i = 0; i < files.length; i++) {
+            let file = files.item(i)
+            
+            let reader = new FileReader()
+            reader.onload = (event) => onJsonLoad(event)
+            reader.readAsText(file)
+        }        
+        divJ.val('')
+    })
 
-let preprocessingFolder = gui.addFolder('Preprocessing');
+    let loadDefaultParametersAndUpdateGUI = ()=> {
+        loadDefaultParameters()
+        updateColor()
+        createGUI()
+    }
+    parametersFolder.add({loadDefaultParameters: loadDefaultParametersAndUpdateGUI}, 'loadDefaultParameters').name('Load default parameters')
 
-preprocessingFolder.add(parameters.preprocessing, 'hue', 0, 1, 0.01).onChange( ()=> updateUniforms() );
-preprocessingFolder.add(parameters.preprocessing, 'saturation', -1, 1, 0.01).onChange( ()=> updateUniforms() );
-preprocessingFolder.add(parameters.preprocessing, 'lightness', -1, 1, 0.01).onChange( ()=> updateUniforms() );
-
-let colorFolder = gui.addFolder('Colors');
-
-colorFolder.addColor(parameters.colors, 'color1').name('Color 1').onChange( ()=> updateColor() );
-colorFolder.addColor(parameters.colors, 'color2').name('Color 2').onChange( ()=> updateColor() );
-colorFolder.addColor(parameters.colors, 'color3').name('Color 3').onChange( ()=> updateColor() );
-// colorFolder.addColor(parameters.colors, 'backgroundColor').name('Background color').onChange( ()=> updateColor() );
-colorFolder.add(parameters, 'useBlack').name('Use Black').onChange( ()=> updateUniforms() );
-
-gui.add(parameters, 'nLines', 1, 1500, 1).onChange( ()=> updateUniforms() );
-gui.add(parameters, 'lineWidth', 0.1, 20, 0.1).onChange( ()=> updateUniforms() );
-// gui.add(parameters, 'lineAA').onChange( ()=> updateUniforms() );
-gui.add(parameters, 'minLineLength', 0, 100, 1);
-gui.add(parameters, 'minHoleLength', 0, 100, 1);
-
-gui.add(parameters, 'mixWeight', 0.0, 3.0, 0.01).onChange( ()=> updateUniforms() );
-
-
-
-let angleFolder = gui.addFolder('Angles');
-
-angleFolder.add(parameters.angles, 'red', 0, 360, 1).name('red angle').onChange( ()=> updateUniforms() );
-angleFolder.add(parameters.angles, 'green', 0, 360, 1).name('green angle').onChange( ()=> updateUniforms() );
-angleFolder.add(parameters.angles, 'blue', 0, 360, 1).name('blue angle').onChange( ()=> updateUniforms() );
-// angleFolder.add(parameters.angles, 'black', 0, 360, 1).name('black angle').onChange( ()=> updateUniforms() );
-
-// gui.add(parameters.thresholds, 'red', 0, 1, 0.01).name('red threshold').onChange( ()=> updateUniforms() );
-// gui.add(parameters.thresholds, 'green', 0, 1, 0.01).name('green threshold').onChange( ()=> updateUniforms() );
-// gui.add(parameters.thresholds, 'blue', 0, 1, 0.01).name('blue threshold').onChange( ()=> updateUniforms() );
-
-// gui.add(parameters.invert, 'red').name('invert red').onChange( ()=> updateUniforms() );
-// gui.add(parameters.invert, 'green').name('invert green').onChange( ()=> updateUniforms() );
-// gui.add(parameters.invert, 'blue').name('invert blue').onChange( ()=> updateUniforms() );
-// gui.add(parameters, 'optimizeWithRaster');
-
-createSVGButton = gui.add(parameters, 'createSVG').name('Create SVG');
-let progressionObject = {progression: '--'}
-let progressionInput = gui.add(progressionObject, 'progression').name('Progression');
-progressionInput.listen()
-$(progressionInput.domElement.parentElement.parentElement).hide()
-
-window.createSVGButton = createSVGButton
-gui.add(parameters, 'exportLayersSeparately').name('Export separately');
-gui.add(parameters, 'exportWidth').name('Export width');
-gui.add(parameters, 'exportHeight').name('Export height');
-exportSVGButton = gui.add(parameters, 'exportSVG').name('Export SVG');
-$(exportSVGButton.domElement.parentElement.parentElement).hide()
-
-// let rectangle = new paper.Path.Rectangle(paper.view.bounds.expand(-40))
-// rectangle.fillColor = 'red'
-
+    parametersFolder.add({saveParameters: save}, 'saveParameters').name('Save parameters');
+}
 
 window.shaders = shaders
 
@@ -1257,3 +1268,60 @@ $(document).ready(()=> {
         shaders.updateTexture(raster)
         updateUniforms()}, 1000)
 })
+
+
+
+
+
+
+
+
+function save(saveFile=true) {
+    let json = JSON.stringify(parameters, null, '\t')
+    localStorage.setItem('parameters', json)
+    if(saveFile) {
+        var blob = new Blob([json], {type: "application/json"})
+        saveAs(blob, "parameters.json")
+    }
+}
+
+function copyObjectProperties(target, source) {
+    if(source == null) {
+        return
+    }
+    for(let property in target) {
+        if(target[property] instanceof Array) {
+            target[property] = source[property].slice()
+        }
+        else if(typeof(target[property]) === 'object') {
+            copyObjectProperties(target[property], source[property])
+        } else if (source[property] != null) {
+            if(typeof target[property] == typeof source[property]) {
+                target[property] = source[property]
+            }
+        }
+    }
+}
+
+function copyObjectPropertiesFromJSON(target, jsonSource) {
+    if(jsonSource == null) {
+        return
+    }
+    copyObjectProperties(target, JSON.parse(jsonSource))
+}
+
+function onJsonLoad(event) {
+    if(event.target != null && event.target.result != null) {
+        copyObjectPropertiesFromJSON(parameters, event.target.result)
+        updateColor()
+        createGUI()
+    }
+}
+
+function loadLocalStorage() {
+    copyObjectPropertiesFromJSON(parameters, localStorage.getItem('parameters'))
+    updateColor()
+}
+
+loadLocalStorage()
+createGUI()
