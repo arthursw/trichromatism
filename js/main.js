@@ -816,7 +816,7 @@ let updateRenderMode = (value = parameters.renderMode)=> {
 
 
 let gui = null
-
+let progressionInput = null
 
 function createGUI() {
     if(gui != null) {
@@ -901,7 +901,7 @@ function createGUI() {
 
     createSVGButton = gui.add(parameters, 'createSVG').name('Create SVG');
     let progressionObject = {progression: '--'}
-    let progressionInput = gui.add(progressionObject, 'progression').name('Progression');
+    progressionInput = gui.add(progressionObject, 'progression').name('Progression');
     progressionInput.listen()
     $(progressionInput.domElement.parentElement.parentElement).hide()
 
