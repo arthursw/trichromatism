@@ -54,19 +54,20 @@ function exportSVG() {
 
     background.remove()
 
-    var container = document.createElement('div');
-
-    var params = { width: parameters.exportWidth, height: parameters.exportHeight };
-    var two = new Two(params).appendTo(container);
-
     let blobs = []
     let i = 1
     for(let colorGroup of group.children) {
+        var container = document.createElement('div');
+
+        var params = { width: parameters.exportWidth, height: parameters.exportHeight };
+        var two = new Two(params).appendTo(container);
         
+        let objects = []
         if(parameters.exportLayersSeparately || colorGroup == group.firstChild) {
             var rect = two.makeRectangle(parameters.exportWidth/2, parameters.exportHeight/2, parameters.exportWidth, parameters.exportHeight);
             rect.fill = new paper.Color(parameters.colors.backgroundColor).toCSS()
             rect.noStroke();
+            objects.push(rect)
         }
         if(colorGroup == group.firstChild) {
             continue
@@ -86,6 +87,7 @@ function exportSVG() {
         let twoGroup = two.makeGroup(lines)
         twoGroup.strokeColor = strokeColor
         twoGroup.id = 'color-' + i
+        objects.push(twoGroup)
 
         if(parameters.exportLayersSeparately || colorGroup == group.lastChild) {
             two.update()
@@ -95,10 +97,11 @@ function exportSVG() {
             var svgString = container.innerHTML
             let oc = parameters.colors[i < 4 ? 'color'+i : 'backgroundColor']
             let colorCSS = new paper.Color([oc[0]/255, oc[1]/255, oc[2]/255])
-            $(container).find('#color-'+i).attr('data-paper-data', colorCSS.toCSS())
+            $(container).find('#color-'+i).attr('data-paper-data', JSON.stringify({ color: colorCSS.toCSS() }) )
 
             let blob = new Blob([svgString], {type: 'image/svg+xml'})
             blobs.push(blob)
+            two.remove(objects)
             two.clear()
         }
         i++
@@ -618,11 +621,12 @@ function mustColor(pixelColor, colorIndex) {
 
 
 function drawLines() {
+    let bounds = shaderCanvasRaster.bounds.expand(-5)
 
-    let width = raster.bounds.width
-    let height = raster.bounds.height
-    let centerX = raster.bounds.center.x
-    let centerY = raster.bounds.center.y
+    let width = bounds.width
+    let height = bounds.height
+    let centerX = bounds.center.x
+    let centerY = bounds.center.y
     
     let maxSize = Math.max(width, height) * Math.sqrt(2);
     let maxViewSize = Math.max(paper.view.bounds.width, paper.view.bounds.height)
@@ -641,11 +645,11 @@ function drawLines() {
 
     // lines.position.x += width / 2
     // lines.position.y += height / 2
-    // lines.pivot = raster.bounds.center
+    // lines.pivot = bounds.center
 
     lines.rotation = parameters.angles[currentColorIndex == 0 ? 'red' : currentColorIndex == 1 ? 'green' : currentColorIndex == 2 ? 'blue' : 'black'];
 
-    let rasterBounds = new paper.Path.Rectangle(raster.bounds)
+    let rasterBounds = new paper.Path.Rectangle(bounds)
     let crossings = lines.getCrossings(rasterBounds)
     let lineToCrossings = new Map()
 
@@ -916,14 +920,14 @@ function createGUI() {
     // let rectangle = new paper.Path.Rectangle(paper.view.bounds.expand(-40))
     // rectangle.fillColor = 'red'
     
-    divJ = $("<input data-name='file-selector' type='file' class='form-control' name='file'  accept='application/json' />")
+    let divJ2 = $("<input data-name='file-selector' type='file' class='form-control' name='file'  accept='application/json' />")
 
     let parametersFolder = gui.addFolder('Save / load parameters')
-    let loadParametersButton = parametersFolder.add({loadParameters: ()=> divJ.click()}, 'loadParameters').name('Load parameters')
+    let loadParametersButton = parametersFolder.add({loadParameters: ()=> divJ2.click()}, 'loadParameters').name('Load parameters')
 
-    divJ.insertAfter(loadParametersButton.domElement.parentElement.parentElement)
-    divJ.hide()
-    divJ.change((event)=> {
+    divJ2.insertAfter(loadParametersButton.domElement.parentElement.parentElement)
+    divJ2.hide()
+    divJ2.change((event)=> {
         let files = event.dataTransfer != null ? event.dataTransfer.files : event.target.files
     
         for (let i = 0; i < files.length; i++) {
@@ -933,7 +937,7 @@ function createGUI() {
             reader.onload = (event) => onJsonLoad(event)
             reader.readAsText(file)
         }        
-        divJ.val('')
+        divJ2.val('')
     })
 
     let loadDefaultParametersAndUpdateGUI = ()=> {
