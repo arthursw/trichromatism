@@ -56,11 +56,15 @@ function exportSVG() {
 
     let blobs = []
     let i = 1
+    var params = { width: parameters.exportWidth, height: parameters.exportHeight };
+    var two = null;
+    var container = null;
     for(let colorGroup of group.children) {
-        var container = document.createElement('div');
-
-        var params = { width: parameters.exportWidth, height: parameters.exportHeight };
-        var two = new Two(params).appendTo(container);
+        
+        if(parameters.exportLayersSeparately || colorGroup == group.firstChild) {
+            container = document.createElement('div');
+            two = new Two(params).appendTo(container);
+        }
         
         let objects = []
         if(parameters.exportLayersSeparately || colorGroup == group.firstChild) {

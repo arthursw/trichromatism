@@ -147,10 +147,11 @@ float distanceToLine(vec2 uv, float gridSize, float lineWidth, float offset) {
 }
 
 float smoothstepLine(vec2 uv, float gridSize, float lineWidth, float aaSize) {
-    float distToLine = distanceToLine(uv, gridSize, lineWidth, 0.5 * gridSize - (gridSize - lineWidth) / 2.0 );
+    float distToLine = distanceToLine(uv, gridSize, lineWidth, lineWidth / 2.0 );
     distToLine = max(0.5 * lineWidth - distToLine, 0.0);
     distToLine = min(distToLine, aaSize);
     return smoothstep(0.0, aaSize, distToLine);
+
     // return smoothstep(0.0, 1.0, (0.5*lineWidth - abs(min(mod(uv.x, gridSize), lineWidth) - 0.5 * lineWidth))/(0.5*lineWidth));
 }
 
