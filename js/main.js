@@ -29,7 +29,7 @@ function exportSVG() {
         alert('The SVG is not generated. Click "Create SVG" to create the vector drawing.')
         return
     }
-    let bounds = new paper.Rectangle(0, 0, parameters.exportWidth, parameters.exportHeight)
+    let bounds = new paper.Rectangle(0, 0, parameters.width, parameters.height)
 
     let background = new paper.Path.Rectangle(shaderCanvasRaster.bounds)
     
@@ -56,7 +56,7 @@ function exportSVG() {
 
     let blobs = []
     let i = 1
-    var params = { width: parameters.exportWidth, height: parameters.exportHeight };
+    var params = { width: parameters.width, height: parameters.height };
     var two = null;
     var container = null;
     for(let colorGroup of group.children) {
@@ -68,7 +68,7 @@ function exportSVG() {
         
         let objects = []
         if(parameters.exportLayersSeparately || colorGroup == group.firstChild) {
-            var rect = two.makeRectangle(parameters.exportWidth/2, parameters.exportHeight/2, parameters.exportWidth, parameters.exportHeight);
+            var rect = two.makeRectangle(parameters.width/2, parameters.height/2, parameters.width, parameters.height);
             rect.fill = new paper.Color(parameters.colors.backgroundColor).toCSS()
             rect.noStroke();
             objects.push(rect)
@@ -142,6 +142,8 @@ function exportSVG() {
 
 function loadDefaultParameters() {
     parameters = {
+        width: 650,
+        height: 500,
         nLines: 195,
         lineWidth: 3,
         // lineAA: 0.01,
@@ -187,9 +189,7 @@ function loadDefaultParameters() {
         mixWeight: 1.15,
         createSVG: createSVG,
         thresholdRaster: thresholdRaster,
-        exportLayersSeparately: true,
-        exportWidth: 1000,
-        exportHeight: 650
+        exportLayersSeparately: true
     }
     return parameters
 }
@@ -568,7 +568,7 @@ function updateColorArrays() {
 
 function createPath(currentColorIndex, pathGroup) {
     let path = new paper.Path();
-    path.strokeWidth = parameters.lineWidth;
+    path.strokeWidth = window.innerWidth * parameters.lineWidth / parameters.width;
     path.strokeColor = currentColorIndex < 3 ? parameters.paperColorArray[currentColorIndex] : 'black';
     path.blendMode = 'multiply'
     path.data.black = false
@@ -881,7 +881,9 @@ function createGUI() {
     colorFolder.addColor(parameters.colors, 'color3').name('Color 3').onChange( ()=> updateColor() ).onFinishChange(()=> save(false));
     // colorFolder.addColor(parameters.colors, 'backgroundColor').name('Background color').onChange( ()=> updateColor() );
     colorFolder.add(parameters, 'useBlack').name('Use Black').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
-
+    
+    gui.add(parameters, 'width').name('Width').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    gui.add(parameters, 'height').name('Height').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
     gui.add(parameters, 'nLines', 1, 1500, 1).onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
     gui.add(parameters, 'lineWidth', 0.1, 20, 0.1).onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
     // gui.add(parameters, 'lineAA').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
@@ -916,8 +918,6 @@ function createGUI() {
 
     window.createSVGButton = createSVGButton
     gui.add(parameters, 'exportLayersSeparately').name('Export separately').onFinishChange(()=> save(false));
-    gui.add(parameters, 'exportWidth').name('Export width').onFinishChange(()=> save(false));
-    gui.add(parameters, 'exportHeight').name('Export height').onFinishChange(()=> save(false));
     exportSVGButton = gui.add({exportSVG: exportSVG}, 'exportSVG').name('Export SVG');
     $(exportSVGButton.domElement.parentElement.parentElement).hide()
 

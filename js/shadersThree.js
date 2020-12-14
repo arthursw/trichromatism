@@ -38,6 +38,8 @@ function createUniforms() {
         mouse: { type: "v4", value: new THREE.Vector4(0, 0) },
         textureSampler: { value: texture },
         textureResolution: new THREE.Uniform(new THREE.Vector2(canvas ? canvas.height / 2 : 0, canvas ? canvas.width / 2 : 0)),
+        width: { type: "f", value: parameters.width },
+        height: { type: "f", value: parameters.height },
         nLines: { type: "i", value: parameters.nLines },
         lineWidth: { type: "f", value: parameters.lineWidth },
         // lineAA: { type: "f", value: parameters.lineAA },
@@ -162,6 +164,9 @@ export function updateUniforms(parameters) {
     if(uniforms == null) {
         return;
     }
+    uniforms.width.value = parameters.width
+    uniforms.height.value = parameters.height
+
     uniforms.nLines.value = parameters.nLines
     uniforms.lineWidth.value = parameters.lineWidth
     // uniforms.lineAA.value = parameters.lineAA

@@ -109,6 +109,8 @@ export function updateUniforms(parameters) {
         return;
     }
 
+    shaderMaterial.setFloat('width', parameters.width);
+    shaderMaterial.setFloat('height', parameters.height);
     shaderMaterial.setInt('nLines', parameters.nLines);
     shaderMaterial.setFloat('lineWidth', parameters.lineWidth);
     shaderMaterial.setInt('rgbOrHsv', parameters.rgbOrHsv);

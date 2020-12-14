@@ -9,6 +9,8 @@ uniform vec2 textureResolution;
 uniform float time;
 uniform vec4 mouse;
 uniform vec4 angles;
+uniform float width;
+uniform float height;
 uniform int nLines;
 uniform float lineWidth;
 // uniform float lineAA;
@@ -331,13 +333,40 @@ int isClosestColor(vec3 pixel, int colorIndex) {
     return icc ? 1 : index == 7 ? -1 : 0;
 }
 
-vec2 getColorForAngle(vec2 uv, float screenRatio, float gridSize, float lineWidthNormalized, float lineAA, float angle, int colorIndex) {
-    float mask = getLineMaskForAngle(uv, gridSize, lineWidthNormalized, lineAA, angle);
+float distToLines(float x, float p, float r)
+{
+    return 2.0*abs((x/p) - floor(x/p)-0.5)-r;
+}
+
+float drawLines(vec2 uv, float lineWidth, float lineSpacing, float angle) {
+    uv = rotate(uv, angle);
+
+    float pixelSize = 1.0 / float(min(screenResolution.x, screenResolution.y));
+    float screenRatio = screenResolution.x / screenResolution.y;
+
+    float lineRatio = lineWidth / lineSpacing;
+    
+    float dist = 4.0 * distToLines(uv.x, lineSpacing*pixelSize, lineRatio);
+    float scale = abs(screenRatio > 1. ? dFdy(uv).y : dFdx(uv).x);
+    float result = clamp(dist / scale, 0.0, 1.0);
+    return result;
+}
+
+vec2 getColorForAngle(vec2 uv, float screenRatio, float gridSize, float lineWidth, float lineAA, float angle, int colorIndex) {
+    float smoothMask = getLineMaskForAngle(uv, gridSize, lineWidth, lineAA, angle);
+    // float smoothMask = 1.0 - drawLines(uv, lineWidth, gridSize, angle);
     vec4 pixel = getPixelForAngle(uv, screenRatio, gridSize, angle);
     int line = isClosestColor(pixel.xyz, colorIndex);
     // vec3 backgroundColor = colors[7];
     // return line ? colors[colorIndex] : backgroundColor;
-    return vec2(float(line), mask);
+    return vec2(float(line), smoothMask);
+}
+
+vec2 getColorForAngle2(vec2 uv, float screenRatio, float gridSize, float lineWidth, float lineAA, float angle, int colorIndex) {
+    float smoothMask = 1.0 - drawLines(uv, lineWidth, gridSize, angle);
+    vec4 pixel = getPixelForAngle(uv, screenRatio, gridSize, angle);
+    int line = isClosestColor(pixel.xyz, colorIndex);
+    return vec2(float(line), smoothMask);
 }
 
 vec4 applyColors(vec2 fragCoord, vec4 finalColor) {
@@ -404,14 +433,18 @@ void main()
     }
     uv -= 0.5;
     uv = screenRatio > 1. ? vec2(uv.x * screenRatio, uv.y) : vec2(uv.x, uv.y / screenRatio);
+    float x = uv.x;
 
     float maxSize = max(screenResolution.x, screenResolution.y) / min(screenResolution.x, screenResolution.y);
     float gridSize = maxSize / float(nLines);
+    float gridSize2 = min(screenResolution.x, screenResolution.y) / float(nLines);
     
     float pixelSize = 1.0 / float(min(screenResolution.x, screenResolution.y));
-    float lineWidthNormalized = lineWidth * pixelSize;
+
+    float lineWidthPixels = screenResolution.x * lineWidth / width;
+    float lineWidthNormalized = lineWidthPixels * pixelSize;
     
-    float lineAAps = 0.0001 * pixelSize;
+    float lineAAps = 0.01 * pixelSize;
 
     vec4 anglesRad = TWO_PI * (angles - 90.0) / 360.0;
     
@@ -440,9 +473,18 @@ void main()
     vec2 color3 = getColorForAngle(uv, screenRatio, gridSize, lineWidthNormalized, lineAAps, anglesRad.b, 2);
     finalColor = color3.x > 0.5 ? mixColors2(finalColor, colors[2], color3.y) : useBlack && color3.x < -0.5 ? mixColors2(finalColor, black, color3.y) : finalColor;
     
+    // vec2 color1 = getColorForAngle2(uv, screenRatio, gridSize2, lineWidthPixels, lineAAps, anglesRad.r, 0);
+    // finalColor = color1.x > 0.5 ? mixColors2(finalColor, colors[0], color1.y) : useBlack && color1.x < -0.5 ? mixColors2(finalColor, black, color1.y) : finalColor;
+    // vec2 color2 = getColorForAngle2(uv, screenRatio, gridSize2, lineWidthPixels, lineAAps, anglesRad.g, 1);
+    // finalColor = color2.x > 0.5 ? mixColors2(finalColor, colors[1], color2.y) : useBlack && color2.x < -0.5 ? mixColors2(finalColor, black, color2.y) : finalColor;
+    // vec2 color3 = getColorForAngle2(uv, screenRatio, gridSize2, lineWidthPixels, lineAAps, anglesRad.b, 2);
+    // finalColor = color3.x > 0.5 ? mixColors2(finalColor, colors[2], color3.y) : useBlack && color3.x < -0.5 ? mixColors2(finalColor, black, color3.y) : finalColor;
+    
     finalColor.a = 1.0;
 
     finalColor = applyColors(gl_FragCoord.xy, finalColor);
+    
+    // finalColor = vec4(color1.y, color1.y, color1.y, 1.0);
 
     gl_FragColor = finalColor;
 }`;
