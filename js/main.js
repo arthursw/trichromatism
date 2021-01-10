@@ -71,6 +71,7 @@ function exportSVG() {
             var rect = two.makeRectangle(parameters.width/2, parameters.height/2, parameters.width, parameters.height);
             rect.fill = new paper.Color(parameters.colors.backgroundColor).toCSS()
             rect.noStroke();
+            rect.linewidth = 0;
             objects.push(rect)
         }
         if(colorGroup == group.firstChild) {
