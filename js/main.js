@@ -655,6 +655,9 @@ function drawLines() {
         let line = new paper.Path();
         line.add(new paper.Point(centerX - maxSize / 2, i * step + centerY - maxSize / 2))
         line.add(new paper.Point(centerX + maxSize / 2, i * step + centerY - maxSize / 2))
+        if(i%2 == 1) {
+            line.reverse()
+        }
         lines.addChild(line);
     }
 
@@ -969,7 +972,7 @@ window.shaders = shaders
 
 let projectRaster = null
 
-let paths = { red:[], green: [], blue: [], black: [] }
+let paths = { red:[], green: [], blue: [], black0: [], black1: [], black2: [] }
 
 function getPointOnRaster(point, raster) {
     let halfSize = raster.size.multiply(0.5)
@@ -1175,7 +1178,7 @@ function animate() {
 
     for(let p of pathGroup.children) {
         if(p.segments.length == 2) {
-            paths[p.data.black ? 'black' : indexToColorName[currentColorIndex]].push(p)
+            paths[p.data.black ? ('black' + currentColorIndex) : indexToColorName[currentColorIndex]].push(p)
         }
     }
 
