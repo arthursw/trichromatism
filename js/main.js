@@ -1176,6 +1176,32 @@ function animate() {
     //     blackPath.add(point)
     // }
 
+    // Replace connected paths by longer lines to avoid too many pen ups / down
+    //
+    //      cyan black cyan      <= two cyan lines with an interuption, and a black line in between
+    //
+    // becomes
+    //
+    //      cyan black&cyan cyan  <= a single continuous cyan line without interuption, and a black line on top of it
+    // 
+    let replacingPath = null
+    for(let p of pathGroup.children.slice()) {
+        if(p.segments.length<2) {
+            p.remove()
+            continue
+        }
+        if (replacingPath != null && p.firstSegment.point.equals(replacingPath.lastSegment.point)) {
+            replacingPath.lastSegment.point.x = p.lastSegment.point.x
+            replacingPath.lastSegment.point.y = p.lastSegment.point.y
+            if(!p.data.black) {
+                console.log('rp')
+                p.remove()
+            }
+        } else if(!p.data.black) {
+            replacingPath = p
+        }
+    }
+
     for(let p of pathGroup.children) {
         if(p.segments.length == 2) {
             paths[p.data.black ? ('black' + currentColorIndex) : indexToColorName[currentColorIndex]].push(p)
