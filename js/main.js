@@ -148,8 +148,8 @@ function loadDefaultParameters() {
         nLines: 195,
         lineWidth: 3,
         // lineAA: 0.01,
-        minLineLength: 5,
-        minHoleLength: 3,
+        minLineLength: 0,
+        minHoleLength: 0,
         optimizeWithRaster: true,
         preprocessing: {
             hue: 0,
@@ -572,9 +572,19 @@ function createPath(currentColorIndex, pathGroup) {
     path.strokeWidth = window.innerWidth * parameters.lineWidth / parameters.width;
     path.strokeColor = currentColorIndex < 3 ? parameters.paperColorArray[currentColorIndex] : 'black';
     path.blendMode = 'multiply'
-    path.data.black = false
+    // if(mc != null) {
+    //     path.data.black = mc==-1
+    //     path.data.mc = mc
+    // }
     pathGroup.addChild(path);
     return path;
+}
+
+function addPoint(path, point, mc, currentColorIndex) {
+    path.add(point)
+    path.data.mc = mc
+    path.data.black = mc == -1
+    path.strokeColor = currentColorIndex < 3 && !path.data.black ? parameters.paperColorArray[currentColorIndex] : 'black';
 }
 
 let lines = new paper.CompoundPath();
@@ -1018,7 +1028,7 @@ function animate() {
         let color = shaderCanvasRaster.getPixel(getPointOnRaster(point, shaderCanvasRaster))
         let mc = mustColor(color, currentColorIndex)
 
-        if(path.segments.length == 1 && mc != 1) {
+        if(path.segments.length == 1 && mc != path.data.mc) {
             path.add(point)
             if(path.length < parameters.minLineLength) {
                 path.remove()
@@ -1026,14 +1036,17 @@ function animate() {
                 previousPath = path
             }
             path = createPath(currentColorIndex, pathGroup)
-        } else if(path.segments.length == 0 && mc == 1) {
+            if(mc != 0 && path.data.mc != 0) {
+                addPoint(path, point, mc, currentColorIndex)
+            }
+        } else if(path.segments.length == 0 && mc != 0) {
 
             if(previousPath && previousPath.segments.length == 2 && previousPath.lastSegment.point.getDistance(point) < parameters.minHoleLength) {
                 path.remove()
                 previousPath.lastSegment.remove()
                 path = previousPath
             } else {
-                path.add(point)
+                addPoint(path, point, mc, currentColorIndex)
             }
         }
         
@@ -1162,7 +1175,7 @@ function animate() {
 
     for(let p of pathGroup.children) {
         if(p.segments.length == 2) {
-            paths[indexToColorName[currentColorIndex]].push(p)
+            paths[p.data.black ? 'black' : indexToColorName[currentColorIndex]].push(p)
         }
     }
 
