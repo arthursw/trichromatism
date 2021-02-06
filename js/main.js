@@ -160,7 +160,7 @@ function loadDefaultParameters() {
             color1: [16,171,255], // Cyan
             color2: [215,0,139],  // Magenta
             color3: [255,210,0],  // Yellow
-            backgroundColor: [255, 255, 255],
+            backgroundColor: [255, 255, 255]
         },
         colorArray: [],
         colorVectorArray: [],
@@ -910,10 +910,10 @@ function createGUI() {
 
     let angleFolder = gui.addFolder('Angles');
 
-    angleFolder.add(parameters.angles, 'red', 0, 360, 1).name('red angle').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
-    angleFolder.add(parameters.angles, 'green', 0, 360, 1).name('green angle').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
-    angleFolder.add(parameters.angles, 'blue', 0, 360, 1).name('blue angle').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
-    // angleFolder.add(parameters.angles, 'black', 0, 360, 1).name('black angle').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    angleFolder.add(parameters.angles, 'red', 0, 360, 1).name('angle 1').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    angleFolder.add(parameters.angles, 'green', 0, 360, 1).name('angle 2').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    angleFolder.add(parameters.angles, 'blue', 0, 360, 1).name('angle 3').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
+    angleFolder.add(parameters.angles, 'black', 0, 360, 1).name('angle 4').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
 
     // gui.add(parameters.thresholds, 'red', 0, 1, 0.01).name('red threshold').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
     // gui.add(parameters.thresholds, 'green', 0, 1, 0.01).name('green threshold').onChange( ()=> updateUniforms() ).onFinishChange(()=> save(false));
@@ -972,7 +972,7 @@ window.shaders = shaders
 
 let projectRaster = null
 
-let paths = { red:[], green: [], blue: [], black0: [], black1: [], black2: [] }
+let paths = { red:[], green: [], blue: [], black: [] }
 
 function getPointOnRaster(point, raster) {
     let halfSize = raster.size.multiply(0.5)
@@ -1004,12 +1004,9 @@ function animate() {
     let pathGroup = new paper.Group()
 
     let path = createPath(currentColorIndex, pathGroup);
-    // let blackPath = createPath(3, pathGroup);
-    // blackPath.data.black = true
 
     let length = currentLine.length
     let previousPath = null
-    // let previousBlackPath = null
     let point = null
 
     for(let i=0 ; i<length ; i++) {
@@ -1029,7 +1026,7 @@ function animate() {
         }
 
         let color = shaderCanvasRaster.getPixel(getPointOnRaster(point, shaderCanvasRaster))
-        let mc = mustColor(color, currentColorIndex)
+        let mc = Math.abs(mustColor(color, currentColorIndex))
 
         if(path.segments.length == 1 && mc != path.data.mc) {
             path.add(point)
@@ -1055,226 +1052,23 @@ function animate() {
         
     }
 
-    // Same thing with black paths:
-
-    // for(let i=0 ; i<length ; i++) {
-
-    //     point = currentLine.getPointAt(i);
-        
-    //     if(!shaderCanvasRaster.bounds.contains(point)) {
-            
-    //         let mustBreak = path.segments.length == 1
-
-    //         if(path.segments.length == 1) {
-    //             path.add(point)
-    //             if(path.length < parameters.minLineLength) {
-    //                 path.remove()
-    //             }
-    //         }
-
-    //         if(blackPath.segments.length == 1) {
-    //             blackPath.add(point)
-    //             if(blackPath.length < parameters.minLineLength) {
-    //                 blackPath.remove()
-    //             }
-    //         }
-
-    //         if(mustBreak) {
-    //             break
-    //         }
-
-    //         continue
-    //     }
-
-    //     // let color = raster.getPixel(getPointOnRaster(point, raster))
-    //     let color = shaderCanvasRaster.getPixel(getPointOnRaster(point, shaderCanvasRaster))
-
-    //     let mc = mustColor(color, currentColorIndex)
-
-    //     // black path
-
-    //     if(blackPath.segments.length == 1 && mc != -1) {
-    //         blackPath.add(point)
-    //         if(blackPath.length < parameters.minLineLength) {
-    //             blackPath.remove()
-    //             blackPath.data.removed = true
-    //         } else {
-    //             // if(path.segments.length == 1) {
-    //             //     path.add(blackPath.firstSegment.point)
-
-    //             //     if(path.length < parameters.minLineLength) {
-    //             //         path.remove()
-    //             //     } else {
-    //             //         paths[indexToColorName[currentColorIndex]].push(path)
-    //             //         previousPath = path
-    //             //     }
-    //             //     path = createPath(currentColorIndex);
-    //             // }
-    //             previousBlackPath = blackPath
-    //         }
-    //         blackPath = createPath(currentColorIndex);
-    //         blackPath.data.black = true
-    //         blackPath.strokeColor = 'black'
-    //     } else if(blackPath.segments.length == 0 && mc == -1) {
-
-    //         if(previousBlackPath && previousBlackPath.segments.length == 2 && previousBlackPath.lastSegment.point.getDistance(point) < parameters.minHoleLength) {
-    //             blackPath.remove()
-    //             blackPath.data.removed = true
-    //             previousBlackPath.lastSegment.remove()
-    //             blackPath = previousBlackPath
-    //         } else {
-    //             blackPath.add(point)
-    //         }
-    //     }
-
-    //     // normal path
-
-    //     // if(path.segments.length == 1 && mc == 0) {
-    //     //     path.add(point)
-    //     //     if(path.length < parameters.minLineLength) {
-    //     //         path.remove()
-    //     //     } else {
-    //     //         paths[indexToColorName[currentColorIndex]].push(path)
-    //     //         previousPath = path
-    //     //     }
-    //     //     path = createPath(currentColorIndex);
-    //     // } else if(path.segments.length == 0 && mc != 0) {
-
-    //     //     if(previousPath && previousPath.segments.length == 2 && previousPath.lastSegment.point.getDistance(point) < parameters.minHoleLength) {
-    //     //         path.remove()
-    //     //         previousPath.lastSegment.remove()
-    //     //         path = previousPath
-    //     //     } else {
-    //     //         path.add(point)
-    //     //     }
-    //     // }
-
-    //     if(path.segments.length == 1 && mc != 1) {
-    //         path.add(point)
-    //         if(path.length < parameters.minLineLength) {
-    //             path.remove()
-    //         } else {
-    //             previousPath = path
-    //         }
-    //         path = createPath(currentColorIndex);
-    //     } else if(path.segments.length == 0 && mc == 1) {
-
-    //         if(previousPath && previousPath.segments.length == 2 && previousPath.lastSegment.point.getDistance(point) < parameters.minHoleLength) {
-    //             path.remove()
-    //             previousPath.lastSegment.remove()
-    //             path = previousPath
-    //         } else {
-    //             path.add(point)
-    //         }
-    //     }
-    // }
-
     if(path.segments.length == 1) {
         path.add(point)
-    }
-    // if(blackPath.segments.length == 1) {
-    //     blackPath.add(point)
-    // }
-
-    // Replace connected paths by longer lines to avoid too many pen ups / down
-    //
-    //      cyan black cyan      <= two cyan lines with an interuption, and a black line in between
-    //
-    // becomes
-    //
-    //      cyan black&cyan cyan  <= a single continuous cyan line without interuption, and a black line on top of it
-    // 
-    let replacingPath = null
-    for(let p of pathGroup.children.slice()) {
-        if(p.segments.length<2) {
-            p.remove()
-            continue
-        }
-        if (replacingPath != null && p.firstSegment.point.equals(replacingPath.lastSegment.point)) {
-            replacingPath.lastSegment.point.x = p.lastSegment.point.x
-            replacingPath.lastSegment.point.y = p.lastSegment.point.y
-            if(!p.data.black) {
-                console.log('rp')
-                p.remove()
-            }
-        } else if(!p.data.black) {
-            replacingPath = p
-        }
     }
 
     for(let p of pathGroup.children) {
         if(p.segments.length == 2) {
-            paths[p.data.black ? ('black' + currentColorIndex) : indexToColorName[currentColorIndex]].push(p)
+            paths[indexToColorName[currentColorIndex]].push(p)
         }
     }
 
     currentLine = currentLine.nextSibling
     currentPixelOnLine = 0
 
-    // while(path.segments.length < 2 && currentLine != null) {
-
-    //     let point = currentLine.getPointAt(currentPixelOnLine);
-    //     animator.position = point;
-
-    //     currentPixelOnLine++;
-        
-    //     if(currentPixelOnLine > currentLine.length) {
-    //         if(path.segments.length == 1) {
-    //             path.add(currentLine.lastSegment.point)
-    //         }
-    //         currentLine = currentLine.nextSibling
-    //         currentPixelOnLine = 0
-    //         break
-    //     }
-
-    //     if(!rasterRectangle.contains(point)) {
-    //         continue
-    //     }
-
-    //     let color = raster.getPixel(point)
-
-    //     let mc = mustColor(chroma(color.components, 'gl'), currentColorIndex)
-
-    //     // if(path.strokeColor.red == 0 && path.strokeColor.green == 0 && path.strokeColor.blue == 0 && mc > -0.5) {
-    //     //     path.add(point)
-    //     // } else {
-
-    //     //     if(mc == 0 && path.segments.length == 1) {
-    //     //         path.add(point)
-    //     //     } else if(mc == 1 && path.segments.length == 0) {
-    //     //         path.add(point)
-    //     //     } else if(mc == -1 && path.segments.length == 0) {
-    //     //         path.add(point)
-    //     //         path.strokeColor = 'black'
-    //     //     }
-    //     // }
-
-    //     if(mc == 0 && path.segments.length == 1) {
-    //         // console.log('add 2nd: ', point)
-    //         path.add(point)
-    //     } else if(mc == 1 && path.segments.length == 0) {
-    //         // console.log('add 1st: ', point)
-    //         path.add(point)
-    //     }
-
-    //     // if(color[currentColor] > parameters.thresholds[currentColor] && path.segments.length == 0) {
-    //     //     path.add(point)
-    //     // } else if(color[currentColor] < parameters.thresholds[currentColor] && path.segments.length == 1) {
-    //     //     path.add(point)
-    //     // }
-
-    //     if(currentPixelOnLine > currentLine.length) {
-    //         if(path.segments.length == 1) {
-    //             path.add(currentLine.lastSegment.point)
-    //         }
-    //         currentLine = currentLine.nextSibling
-    //         currentPixelOnLine = 0
-    //     }
-    // }
-
+    let nColorsToProcess = parameters.useBlack ? 4 : 3;
     if(currentLine == null) {
         currentColorIndex++
-        if(currentColorIndex < 3) {
+        if(currentColorIndex < nColorsToProcess ) {
             drawLines()
         } else {
             createSVGButton.name('Create SVG')
@@ -1284,7 +1078,7 @@ function animate() {
     } else {
         $(progressionInput.domElement.parentElement.parentElement).show()
         let nLines = currentLine.parent.children.length
-        progressionObject.progression = 'color ' + (currentColorIndex + 1) + '/3, '
+        progressionObject.progression = 'color ' + (currentColorIndex + 1) + '/' + nColorsToProcess + ', '
         progressionObject.progression += 'line ' + currentLine.index + '/' + nLines
     }
 

@@ -467,12 +467,16 @@ void main()
     finalColor.a = 1.0;
 
     vec2 color1 = getColorForAngle(uv, screenRatio, gridSize, lineWidthNormalized, lineAAps, anglesRad.r, 0);
-    finalColor = color1.x > 0.5 ? mixColors2(finalColor, colors[0], color1.y) : useBlack && color1.x < -0.5 ? mixColors2(finalColor, black, color1.y) : finalColor;
+    finalColor = abs(color1.x) > 0.5 ? mixColors2(finalColor, colors[0], color1.y) : finalColor; // useBlack && color1.x < -0.5 ? mixColors2(finalColor, black, color1.y) : finalColor;
     vec2 color2 = getColorForAngle(uv, screenRatio, gridSize, lineWidthNormalized, lineAAps, anglesRad.g, 1);
-    finalColor = color2.x > 0.5 ? mixColors2(finalColor, colors[1], color2.y) : useBlack && color2.x < -0.5 ? mixColors2(finalColor, black, color2.y) : finalColor;
+    finalColor = abs(color2.x) > 0.5 ? mixColors2(finalColor, colors[1], color2.y) : finalColor; // useBlack && color2.x < -0.5 ? mixColors2(finalColor, black, color2.y) : finalColor;
     vec2 color3 = getColorForAngle(uv, screenRatio, gridSize, lineWidthNormalized, lineAAps, anglesRad.b, 2);
-    finalColor = color3.x > 0.5 ? mixColors2(finalColor, colors[2], color3.y) : useBlack && color3.x < -0.5 ? mixColors2(finalColor, black, color3.y) : finalColor;
-    
+    finalColor = abs(color3.x) > 0.5 ? mixColors2(finalColor, colors[2], color3.y) : finalColor; // useBlack && color3.x < -0.5 ? mixColors2(finalColor, black, color3.y) : finalColor;
+    if(useBlack) {
+        vec2 color4 = getColorForAngle(uv, screenRatio, gridSize, lineWidthNormalized, lineAAps, anglesRad.a, 3);
+        finalColor = abs(color4.x) > 0.5 ? mixColors2(finalColor, black, color4.y) : finalColor;
+    }
+
     // vec2 color1 = getColorForAngle2(uv, screenRatio, gridSize2, lineWidthPixels, lineAAps, anglesRad.r, 0);
     // finalColor = color1.x > 0.5 ? mixColors2(finalColor, colors[0], color1.y) : useBlack && color1.x < -0.5 ? mixColors2(finalColor, black, color1.y) : finalColor;
     // vec2 color2 = getColorForAngle2(uv, screenRatio, gridSize2, lineWidthPixels, lineAAps, anglesRad.g, 1);
